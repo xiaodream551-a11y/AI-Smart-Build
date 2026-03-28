@@ -173,12 +173,36 @@ def main():
         n=params["num_floors"],
     ))
 
-    # 在事务中执行建模
-    with revit.Transaction("AI智建：一键生成框架"):
-        stats = generate_frame(
-            doc, params,
-            progress_callback=lambda msg: output.print_md("- " + msg)
-        )
+    total_steps = 1 + 1 + params["num_floors"] * 3
+    current_step = [0]
+
+    try:
+        with forms.ProgressBar(title="AI 智建 — 生成中...", cancellable=True) as pb:
+            pb.update_progress(0, total_steps)
+
+            def on_progress(msg):
+                if pb.cancelled:
+                    raise Exception("用户取消")
+
+                current_step[0] += 1
+                pb.title = msg
+                pb.update_progress(current_step[0], total_steps)
+                output.print_md("- " + msg)
+
+                if pb.cancelled:
+                    raise Exception("用户取消")
+
+            # 在事务中执行建模
+            with revit.Transaction("AI智建：一键生成框架"):
+                stats = generate_frame(
+                    doc, params,
+                    progress_callback=on_progress
+                )
+    except Exception as err:
+        if str(err) == "用户取消":
+            forms.alert("用户取消", title="AI 智建")
+            return
+        raise
 
     # 输出统计
     output.print_md("---")
