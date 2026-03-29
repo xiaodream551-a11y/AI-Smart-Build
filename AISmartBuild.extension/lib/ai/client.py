@@ -112,10 +112,12 @@ class DeepSeekClient(object):
             ))
         except ValueError:
             self._rollback_last_user_message(user_message)
-            raise Exception("API 返回不是合法 JSON")
+            snippet = (response_text or "")[:200].strip()
+            raise Exception("API 返回不是合法 JSON\n--- 原始返回(前200字) ---\n{}".format(snippet))
         except (KeyError, IndexError):
             self._rollback_last_user_message(user_message)
-            raise Exception("API 返回格式异常")
+            snippet = (response_text or "")[:300].strip()
+            raise Exception("API 返回格式异常\n--- 原始返回(前300字) ---\n{}".format(snippet))
         except Exception as err:
             if self._is_request_exception(err):
                 self._rollback_last_user_message(user_message)
