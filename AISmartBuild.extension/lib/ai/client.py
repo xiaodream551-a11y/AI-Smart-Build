@@ -89,44 +89,44 @@ class DeepSeekClient(object):
         self.conversation.append({"role": "user", "content": user_message})
         self._trim_conversation_history(preserve_pending_user=True)
 
-        response_text = None
+        # --- Step 1: HTTP request ---
         try:
             payload = self._build_payload(self.conversation)
             if timeout_ms in (None, ""):
                 response_text = self._http_post(payload)
             else:
                 response_text = self._http_post(payload, timeout_ms=timeout_ms)
-            result = json.loads(response_text)
-            error_message = self._extract_error_message(result)
-            if error_message:
-                raise Exception(error_message)
-            reply = result["choices"][0]["message"]["content"]
-
-            self.conversation.append({"role": "assistant", "content": reply})
-            self._trim_conversation_history()
-            return reply
-
-        except WebException as err:
+        except Exception as err:
             self._rollback_last_user_message(user_message)
-            raise Exception("API 请求失败: {}".format(
-                self._extract_web_exception_message(err)
+            raise Exception("API 请求失败 [{}]: {}".format(
+                type(err).__name__,
+                self._extract_web_exception_message(err),
             ))
-        except ValueError:
+
+        # --- Step 2: parse response ---
+        try:
+            result = json.loads(response_text)
+        except (ValueError, TypeError):
             self._rollback_last_user_message(user_message)
-            snippet = (response_text or "")[:200].strip()
-            raise Exception("API 返回不是合法 JSON\n--- 原始返回(前200字) ---\n{}".format(snippet))
+            snippet = (response_text or "")[:300].strip()
+            raise Exception("API 返回不是合法 JSON\n--- 原始返回(前300字) ---\n{}".format(snippet))
+
+        error_message = self._extract_error_message(result)
+        if error_message:
+            self._rollback_last_user_message(user_message)
+            raise Exception(error_message)
+
+        # --- Step 3: extract reply ---
+        try:
+            reply = result["choices"][0]["message"]["content"]
         except (KeyError, IndexError):
             self._rollback_last_user_message(user_message)
             snippet = (response_text or "")[:300].strip()
             raise Exception("API 返回格式异常\n--- 原始返回(前300字) ---\n{}".format(snippet))
-        except Exception as err:
-            if self._is_request_exception(err):
-                self._rollback_last_user_message(user_message)
-                raise Exception("API 请求失败: {}".format(
-                    self._extract_web_exception_message(err)
-                ))
-            self._rollback_last_user_message(user_message)
-            raise
+
+        self.conversation.append({"role": "assistant", "content": reply})
+        self._trim_conversation_history()
+        return reply
 
     def reset(self):
         """Reset the conversation history."""
