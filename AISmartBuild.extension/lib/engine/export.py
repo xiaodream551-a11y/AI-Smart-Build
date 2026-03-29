@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""模型数据导出。"""
+"""Model data export."""
 
 import io
 import json

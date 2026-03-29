@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""pyRevit 扩展启动脚本。"""
+"""pyRevit extension startup script."""
 
 import os
 import sys

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""操作日志记录"""
+"""Operation logging."""
 
 from datetime import datetime
 import io
@@ -16,7 +16,7 @@ SOURCE_LABELS = {
 
 
 class OperationLog(object):
-    """简单的操作日志记录器"""
+    """Simple operation logger."""
 
     _SUMMARY_GROUPS = [
         (("create_grid",), "创建", "根轴线"),
@@ -31,17 +31,18 @@ class OperationLog(object):
     ]
 
     def __init__(self):
-        """初始化空日志列表"""
+        """Initialize an empty log list."""
         self.logs = []
         self.counts = {}
 
     def log(self, action, detail, count=1):
         """
-        记录一条操作日志
+        Record an operation log entry.
+
         Args:
-            action: 操作类型，如 create_column
-            detail: 操作详情文本
-            count: 计数，默认为 1
+            action: Operation type, e.g. create_column
+            detail: Operation detail text
+            count: Count, defaults to 1
         """
         timestamp = datetime.now().strftime("%H:%M:%S")
         action_text = self._to_text(action)
@@ -68,7 +69,8 @@ class OperationLog(object):
 
     def get_summary(self):
         """
-        返回中文摘要
+        Return a Chinese-language summary string.
+
         Returns:
             str
         """
@@ -101,7 +103,8 @@ class OperationLog(object):
 
     def get_detail(self):
         """
-        返回完整日志文本
+        Return the full log text.
+
         Returns:
             str
         """
@@ -125,11 +128,12 @@ class OperationLog(object):
 
     def save_to_file(self, filepath):
         """
-        保存日志到 txt 文件
+        Save log to a txt file.
+
         Args:
-            filepath: 输出文件路径
+            filepath: Output file path
         Returns:
-            str: 文件路径
+            str: File path
         """
         with io.open(filepath, "w", encoding="utf-8") as log_file:
             detail = self.get_detail()
@@ -146,7 +150,7 @@ class OperationLog(object):
 
 
 class ConversationLog(object):
-    """AI 对话会话记录。"""
+    """AI conversation session log."""
 
     def __init__(self):
         self.turns = []
@@ -165,7 +169,7 @@ class ConversationLog(object):
         failed_filter=None,
         failed_selected_round_index=None
     ):
-        """追加一轮会话记录。"""
+        """Append one conversation turn."""
         entry = self._normalize_turn({
             "timestamp": datetime.now().strftime("%H:%M:%S"),
             "user_input": user_input,
@@ -184,7 +188,7 @@ class ConversationLog(object):
         return entry
 
     def to_markdown(self):
-        """将当前会话记录渲染为 Markdown。"""
+        """Render the current session log as Markdown."""
         if not self.turns:
             return ""
 
@@ -244,7 +248,7 @@ class ConversationLog(object):
         return "\n".join(sections)
 
     def save_to_file(self, filepath):
-        """保存 Markdown 会话文件，并同步写入同名 JSON。"""
+        """Save Markdown session file and write a companion JSON file."""
         with io.open(filepath, "w", encoding="utf-8") as output_file:
             content = self.to_markdown()
             if content:
@@ -256,14 +260,14 @@ class ConversationLog(object):
         return filepath
 
     def save_to_json(self, filepath):
-        """将会话记录保存为 JSON 文件。"""
+        """Save the session log as a JSON file."""
         with io.open(filepath, "w", encoding="utf-8") as output_file:
             json.dump(self.turns, output_file, ensure_ascii=False, indent=2)
         return filepath
 
     @classmethod
     def load_from_json(cls, filepath):
-        """从 JSON 文件加载会话记录。"""
+        """Load session log from a JSON file."""
         with io.open(filepath, "r", encoding="utf-8") as input_file:
             data = json.load(input_file)
 
@@ -453,7 +457,7 @@ class ConversationLog(object):
 
 
 def build_default_output_path(prefix, extension="txt"):
-    """生成默认输出文件路径。"""
+    """Build a default output file path."""
     base_dir = get_default_output_dir()
     if not os.path.exists(base_dir):
         os.makedirs(base_dir)
@@ -466,7 +470,7 @@ def build_default_output_path(prefix, extension="txt"):
 
 
 def get_default_output_dir():
-    """返回默认输出目录。"""
+    """Return the default output directory."""
     return os.path.join(
         os.path.expanduser("~"),
         "Documents",
@@ -475,12 +479,12 @@ def get_default_output_dir():
 
 
 def build_default_log_path(prefix):
-    """生成默认日志文件路径"""
+    """Build a default log file path."""
     return build_default_output_path(prefix, "txt")
 
 
 def export_operation_log(operation_log, prefix):
-    """导出操作日志到默认目录"""
+    """Export operation log to the default directory."""
     if not operation_log or not operation_log.logs:
         return None
 
@@ -490,7 +494,7 @@ def export_operation_log(operation_log, prefix):
 
 
 def export_conversation_log(conversation_log, prefix):
-    """导出 AI 对话会话记录。"""
+    """Export AI conversation session log."""
     if not conversation_log or not conversation_log.turns:
         return None
 
@@ -500,7 +504,7 @@ def export_conversation_log(conversation_log, prefix):
 
 
 def find_latest_output_path(prefix, extension):
-    """查找默认目录下最近生成的匹配文件。"""
+    """Find the most recently generated matching file in the default directory."""
     base_dir = get_default_output_dir()
     if not os.path.exists(base_dir):
         return None

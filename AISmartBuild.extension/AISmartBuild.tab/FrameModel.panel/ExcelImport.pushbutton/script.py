@@ -1,6 +1,6 @@
 #! python3
 # -*- coding: utf-8 -*-
-"""从 Excel 表格批量导入构件"""
+"""Batch-import elements from an Excel spreadsheet."""
 
 __doc__ = "选择 Excel 构件清单，批量创建柱、梁"
 __title__ = "Excel\n导入"

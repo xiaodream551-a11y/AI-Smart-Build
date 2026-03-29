@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""构件修改与删除"""
+"""Element modification and deletion."""
 
 from pyrevit import DB
 from utils import (
@@ -45,14 +45,15 @@ _CATEGORY_INFO = {
 
 def modify_element(doc, element_id, new_section=None, new_level=None):
     """
-    修改单个构件的截面或标高
+    Modify a single element's cross-section or level.
+
     Args:
         doc: Revit Document
-        element_id: 构件 ElementId / int / str
-        new_section: 新截面，如 "600x600"
-        new_level: 新标高，可传 Level / 标高名 / 楼层序号 / ElementId
+        element_id: Element ElementId / int / str
+        new_section: New cross-section, e.g. "600x600"
+        new_level: New level; accepts Level / level name / floor number / ElementId
     Returns:
-        str: 中文执行结果
+        str: Chinese result message
     """
     if not new_section and new_level is None:
         return "未提供可修改内容"
@@ -99,12 +100,13 @@ def modify_element(doc, element_id, new_section=None, new_level=None):
 
 def delete_element(doc, element_id):
     """
-    删除单个构件
+    Delete a single element.
+
     Args:
         doc: Revit Document
-        element_id: 构件 ElementId / int / str
+        element_id: Element ElementId / int / str
     Returns:
-        str: 中文执行结果
+        str: Chinese result message
     """
     try:
         element = _get_element(doc, element_id)
@@ -121,15 +123,16 @@ def delete_element(doc, element_id):
 
 def batch_modify_by_filter(doc, category, floor_level, old_section, new_section):
     """
-    按类别 + 楼层 + 截面批量修改构件
+    Batch modify elements by category + floor + cross-section.
+
     Args:
         doc: Revit Document
-        category: 构件类别，如 "column" / "beam"
-        floor_level: 标高对象 / 标高名 / 楼层序号
-        old_section: 旧截面
-        new_section: 新截面
+        category: Element category, e.g. "column" / "beam"
+        floor_level: Level object / level name / floor number
+        old_section: Old cross-section
+        new_section: New cross-section
     Returns:
-        str: 中文执行结果
+        str: Chinese result message
     """
     try:
         old_section_text = _normalize_section(old_section)
@@ -191,13 +194,14 @@ def batch_modify_by_filter(doc, category, floor_level, old_section, new_section)
 
 def batch_delete_by_filter(doc, category, floor_level=None):
     """
-    按类别 / 楼层批量删除构件
+    Batch delete elements by category / floor.
+
     Args:
         doc: Revit Document
-        category: 构件类别，如 "column" / "beam" / "slab"
-        floor_level: 标高对象 / 标高名 / 楼层序号，可为空
+        category: Element category, e.g. "column" / "beam" / "slab"
+        floor_level: Level object / level name / floor number, can be None
     Returns:
-        str: 中文执行结果
+        str: Chinese result message
     """
     try:
         cat = _resolve_category(category)

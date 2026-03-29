@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Revit 元素属性提取 — parser 和 export 共用的工具函数"""
+"""Revit element property extraction -- shared utility functions for parser and export."""
 
 import re
 
@@ -7,7 +7,7 @@ from utils import feet_to_mm
 
 
 # ============================================================
-# 文本工具
+# Text utilities
 # ============================================================
 
 def to_text(value):
@@ -35,7 +35,7 @@ def format_number(value):
 
 
 # ============================================================
-# ElementId 工具
+# ElementId utilities
 # ============================================================
 
 def is_valid_element_id(element_id):
@@ -75,7 +75,7 @@ def get_element_level_int(DB, element):
 
 
 # ============================================================
-# 标高名称
+# Level name resolution
 # ============================================================
 
 def resolve_level_name(doc, level_id):
@@ -86,7 +86,7 @@ def resolve_level_name(doc, level_id):
 
 
 # ============================================================
-# 截面信息
+# Section information
 # ============================================================
 
 def get_element_section_text(DB, element):
@@ -148,7 +148,7 @@ def get_type_dimension_mm(DB, element_type, param_names):
 
 
 # ============================================================
-# 面积
+# Area
 # ============================================================
 
 def get_element_area_sqm(DB, element):

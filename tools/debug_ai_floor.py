@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""本地 AI / 楼层解析调试脚本。"""
+"""Local AI / floor resolution debug script."""
 
 import argparse
 import json
@@ -32,25 +32,25 @@ DEFAULT_REPLY = """```json
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="离线调试 AI JSON 解析和楼层映射"
+        description="Offline debug for AI JSON parsing and floor mapping"
     )
     parser.add_argument(
         "--reply",
-        help="模型原始回复文本，支持直接 JSON 或 markdown 代码块",
+        help="Raw model reply text, supports direct JSON or markdown code blocks",
     )
     parser.add_argument(
         "--reply-file",
-        help="从文件读取模型原始回复文本",
+        help="Read raw model reply text from a file",
     )
     parser.add_argument(
         "--stories",
         type=int,
         default=5,
-        help="按项目约定自动生成故事层数量，默认 5",
+        help="Auto-generate story level count following project conventions, default 5",
     )
     parser.add_argument(
         "--levels",
-        help="自定义标高名称，逗号分隔，例如 '±0.000,F1,F2,屋面'",
+        help="Custom level names, comma-separated, e.g. '±0.000,F1,F2,屋面'",
     )
     return parser.parse_args()
 
@@ -146,7 +146,7 @@ def main():
     try:
         command = parse_command(reply_text)
     except Exception as err:
-        print("解析失败：{}".format(err), file=sys.stderr)
+        print("Parse failed: {}".format(err), file=sys.stderr)
         return 1
 
     output = {

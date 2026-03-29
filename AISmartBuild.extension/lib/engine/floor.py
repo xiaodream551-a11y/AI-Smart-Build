@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""楼板创建"""
+"""Floor slab creation."""
 
 import clr
 clr.AddReference('System')
@@ -11,14 +11,15 @@ from utils import mm_to_feet, get_floor_type
 
 def create_floor(doc, boundary_points_mm, level, floor_type_name=None):
     """
-    创建楼板
+    Create a floor slab.
+
     Args:
         doc: Revit Document
-        boundary_points_mm: 边界点列表 [(x1,y1), (x2,y2), ...] (mm)，按顺序围合
-        level: 楼板标高 (Level 对象)
-        floor_type_name: 楼板类型名称，为 None 则使用默认
+        boundary_points_mm: Boundary point list [(x1,y1), (x2,y2), ...] (mm), ordered to form a closed loop
+        level: Floor level (Level object)
+        floor_type_name: Floor type name, uses default if None
     Returns:
-        Floor 对象
+        Floor object
     """
     if level is None:
         raise ValueError("楼板标高不能为空")
@@ -29,7 +30,7 @@ def create_floor(doc, boundary_points_mm, level, floor_type_name=None):
 
     floor_type = get_floor_type(doc, floor_type_name)
 
-    # 构建边界曲线环
+    # Build boundary curve loop
     curve_loop = DB.CurveLoop()
     n = len(boundary_points_mm)
     for i in range(n):
@@ -40,13 +41,13 @@ def create_floor(doc, boundary_points_mm, level, floor_type_name=None):
         line = DB.Line.CreateBound(p1, p2)
         curve_loop.Append(line)
 
-    # Revit 2022+ 使用 Floor.Create，旧版本使用 NewFloor
+    # Revit 2022+ uses Floor.Create; older versions use NewFloor
     try:
         curve_loops = List[DB.CurveLoop]()
         curve_loops.Add(curve_loop)
         floor = DB.Floor.Create(doc, curve_loops, floor_type.Id, level.Id)
     except AttributeError:
-        # Revit 2021 及更早版本：使用 doc.Create.NewFloor
+        # Revit 2021 and earlier: use doc.Create.NewFloor
         curve_array = DB.CurveArray()
         for curve in curve_loop:
             curve_array.Append(curve)
@@ -67,16 +68,17 @@ def _polygon_area(boundary_points_mm):
 def create_floors_on_grid(doc, x_coords_mm, y_coords_mm, level,
                           floor_type_name=None):
     """
-    在每个轴网格子中创建楼板
-    一般框架结构中，每层只创建一整块大板（外轮廓围合）
+    Create floor slabs within grid cells.
+    In a typical frame structure, each story has a single slab covering the outer boundary.
+
     Args:
-        x_coords_mm: X 向坐标列表
-        y_coords_mm: Y 向坐标列表
-        level: 楼板标高
+        x_coords_mm: X-direction coordinate list
+        y_coords_mm: Y-direction coordinate list
+        level: Floor level
     Returns:
-        Floor 对象
+        Floor object
     """
-    # 整层一块板：取最外轮廓
+    # Single slab per story: use the outermost boundary
     x_min, x_max = min(x_coords_mm), max(x_coords_mm)
     y_min, y_max = min(y_coords_mm), max(y_coords_mm)
 

@@ -17,12 +17,12 @@ bootstrap()
 
 
 def reload_module(module_name):
-    """在测试中重载模块，确保读取最新环境变量与文件状态。"""
+    """Reload a module during tests to pick up the latest env vars and file state."""
     if module_name in sys.modules:
         return importlib.reload(sys.modules[module_name])
     return importlib.import_module(module_name)
 
 
 def load_project_script(module_name, relative_path):
-    """按相对路径加载按钮脚本。"""
+    """Load a button script by relative path."""
     return load_module_from_path(module_name, relative_path)

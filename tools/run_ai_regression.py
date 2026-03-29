@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""批量回归检查 AI 回复解析结果。"""
+"""Batch regression check for AI reply parsing results."""
 
 import argparse
 import contextlib
@@ -25,11 +25,11 @@ from ai.parser import dispatch_command  # noqa: E402
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="批量回归检查 AI 回复解析结果")
+    parser = argparse.ArgumentParser(description="Batch regression check for AI reply parsing results")
     parser.add_argument(
         "--cases",
         default=str(DEFAULT_CASES_PATH),
-        help="回归用例 JSON 文件路径",
+        help="Path to the regression cases JSON file",
     )
     return parser.parse_args()
 
@@ -38,7 +38,7 @@ def load_cases(path):
     with open(path, "r", encoding="utf-8") as input_file:
         data = json.load(input_file)
     if not isinstance(data, list):
-        raise ValueError("回归用例文件必须是数组")
+        raise ValueError("Regression cases file must be an array")
     return data
 
 
@@ -52,19 +52,19 @@ def build_levels(case):
 def assert_subset(expected, actual, path="root"):
     if isinstance(expected, dict):
         if not isinstance(actual, dict):
-            raise AssertionError("{} 应为对象，当前值: {}".format(path, actual))
+            raise AssertionError("{} should be an object, got: {}".format(path, actual))
         for key, value in expected.items():
             if key not in actual:
-                raise AssertionError("{} 缺少键 {}".format(path, key))
+                raise AssertionError("{} missing key {}".format(path, key))
             assert_subset(value, actual[key], "{}.{}".format(path, key))
         return
 
     if isinstance(expected, list):
         if not isinstance(actual, list):
-            raise AssertionError("{} 应为数组，当前值: {}".format(path, actual))
+            raise AssertionError("{} should be an array, got: {}".format(path, actual))
         if len(actual) < len(expected):
             raise AssertionError(
-                "{} 长度不足，期望至少 {}，当前 {}".format(
+                "{} length insufficient, expected at least {}, got {}".format(
                     path, len(expected), len(actual)
                 )
             )
@@ -74,7 +74,7 @@ def assert_subset(expected, actual, path="root"):
 
     if expected != actual:
         raise AssertionError(
-            "{} 不匹配，期望 {!r}，当前 {!r}".format(path, expected, actual)
+            "{} mismatch, expected {!r}, got {!r}".format(path, expected, actual)
         )
 
 
@@ -96,7 +96,7 @@ def evaluate_case(case):
 
         if expected_error:
             raise AssertionError(
-                "期望失败并包含 {!r}，但当前解析成功".format(expected_error)
+                "Expected failure containing {!r}, but parsing succeeded".format(expected_error)
             )
 
         expected = case.get("expected", {})
@@ -114,7 +114,7 @@ def evaluate_case(case):
             result["dispatch_result"] = dispatch_result
             if expected_dispatch_result_contains not in dispatch_result:
                 raise AssertionError(
-                    "dispatch_result 未包含 {!r}，当前 {!r}".format(
+                    "dispatch_result does not contain {!r}, got {!r}".format(
                         expected_dispatch_result_contains,
                         dispatch_result,
                     )
@@ -128,7 +128,7 @@ def evaluate_case(case):
         message = "{}".format(err)
         if expected_error not in message:
             raise AssertionError(
-                "错误信息不匹配，期望包含 {!r}，当前 {!r}".format(
+                "Error message mismatch, expected to contain {!r}, got {!r}".format(
                     expected_error, message
                 )
             )
@@ -366,9 +366,9 @@ def main():
     cases = load_cases(args.cases)
     summary = run_cases(cases)
 
-    print("回归用例总数: {}".format(summary["total"]))
-    print("通过: {}".format(len(summary["passed"])))
-    print("失败: {}".format(len(summary["failed"])))
+    print("Total regression cases: {}".format(summary["total"]))
+    print("Passed: {}".format(len(summary["passed"])))
+    print("Failed: {}".format(len(summary["failed"])))
 
     for item in summary["passed"]:
         print("[PASS] {}".format(item["name"]))

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""结构梁创建"""
+"""Structural beam creation."""
 
 from pyrevit import DB
 from utils import mm_to_feet, get_or_create_beam_type, parse_section
@@ -8,14 +8,15 @@ from utils import mm_to_feet, get_or_create_beam_type, parse_section
 def create_beam(doc, start_x_mm, start_y_mm, end_x_mm, end_y_mm,
                 level, section="300x600"):
     """
-    创建一根结构梁
+    Create a structural beam.
+
     Args:
         doc: Revit Document
-        start_x/y_mm, end_x/y_mm: 梁起止点坐标 (mm)
-        level: 梁所在标高 (Level 对象)
-        section: 截面尺寸字符串，如 "300x600" (mm)
+        start_x/y_mm, end_x/y_mm: Beam start and end point coordinates (mm)
+        level: Beam level (Level object)
+        section: Cross-section dimension string, e.g. "300x600" (mm)
     Returns:
-        FamilyInstance 梁实例
+        FamilyInstance beam instance
     """
     if level is None:
         raise ValueError("梁所在标高不能为空")
@@ -28,7 +29,7 @@ def create_beam(doc, start_x_mm, start_y_mm, end_x_mm, end_y_mm,
         beam_type.Activate()
         doc.Regenerate()
 
-    z = level.Elevation  # 梁顶标高
+    z = level.Elevation  # Beam top elevation
 
     start = DB.XYZ(mm_to_feet(start_x_mm), mm_to_feet(start_y_mm), z)
     end = DB.XYZ(mm_to_feet(end_x_mm), mm_to_feet(end_y_mm), z)
@@ -46,19 +47,20 @@ def create_beam(doc, start_x_mm, start_y_mm, end_x_mm, end_y_mm,
 def create_beams_on_grid(doc, x_coords_mm, y_coords_mm, level,
                          section_x="300x600", section_y="300x600"):
     """
-    沿所有轴线创建梁
+    Create beams along all grid lines.
+
     Args:
-        x_coords_mm: X 向坐标列表
-        y_coords_mm: Y 向坐标列表
-        level: 梁所在标高
-        section_x: X 向梁截面（沿 X 方向的梁）
-        section_y: Y 向梁截面（沿 Y 方向的梁）
+        x_coords_mm: X-direction coordinate list
+        y_coords_mm: Y-direction coordinate list
+        level: Beam level
+        section_x: X-direction beam cross-section (beams running along X-axis)
+        section_y: Y-direction beam cross-section (beams running along Y-axis)
     Returns:
-        所有梁实例的列表
+        List of all beam instances
     """
     beams = []
 
-    # X 向梁（横向，沿每条 Y 轴线）
+    # X-direction beams (horizontal, along each Y-axis grid line)
     for y in y_coords_mm:
         for i in range(len(x_coords_mm) - 1):
             beam = create_beam(
@@ -69,7 +71,7 @@ def create_beams_on_grid(doc, x_coords_mm, y_coords_mm, level,
             )
             beams.append(beam)
 
-    # Y 向梁（纵向，沿每条 X 轴线）
+    # Y-direction beams (longitudinal, along each X-axis grid line)
     for x in x_coords_mm:
         for i in range(len(y_coords_mm) - 1):
             beam = create_beam(

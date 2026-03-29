@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""修改选中构件的截面、标高等属性"""
+"""Modify cross-section, level, and other properties of selected elements."""
 
 __doc__ = "选中构件后修改截面尺寸、标高等属性，支持批量修改"
 __title__ = "修改\n构件"
@@ -22,7 +22,7 @@ MODE_BATCH = u"批量修改"
 
 
 class StoryFloorOption(object):
-    """批量操作的故事层选项。"""
+    """Story floor option for batch operations."""
 
     def __init__(self, floor_number, level):
         self.floor_number = floor_number

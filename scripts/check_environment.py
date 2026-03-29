@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""跨平台环境检查脚本。"""
+"""Cross-platform environment check script."""
 
 import importlib
 import json
@@ -49,9 +49,9 @@ def check_python_version():
     )
     is_ok = sys.version_info >= (3, 10)
     return {
-        "name": "Python 版本",
+        "name": "Python version",
         "ok": is_ok,
-        "detail": "当前版本 {}".format(current_version),
+        "detail": "Current version {}".format(current_version),
     }
 
 
@@ -60,24 +60,24 @@ def check_openpyxl():
         module = importlib.import_module("openpyxl")
     except Exception as err:
         return {
-            "name": "openpyxl 依赖",
+            "name": "openpyxl dependency",
             "ok": False,
-            "detail": "未安装或导入失败：{}".format(err),
+            "detail": "Not installed or import failed: {}".format(err),
         }
 
     return {
-        "name": "openpyxl 依赖",
+        "name": "openpyxl dependency",
         "ok": True,
-        "detail": "已安装，版本 {}".format(getattr(module, "__version__", "unknown")),
+        "detail": "Installed, version {}".format(getattr(module, "__version__", "unknown")),
     }
 
 
 def check_config_file():
     if not CONFIG_PATH.exists():
         return {
-            "name": "DeepSeek 配置",
+            "name": "DeepSeek config",
             "ok": False,
-            "detail": "未找到配置文件：{}".format(CONFIG_PATH),
+            "detail": "Config file not found: {}".format(CONFIG_PATH),
         }
 
     try:
@@ -85,9 +85,9 @@ def check_config_file():
             data = json.load(input_file)
     except Exception as err:
         return {
-            "name": "DeepSeek 配置",
+            "name": "DeepSeek config",
             "ok": False,
-            "detail": "配置文件读取失败：{}".format(err),
+            "detail": "Failed to read config file: {}".format(err),
         }
 
     api_key = ""
@@ -96,15 +96,15 @@ def check_config_file():
 
     if not api_key:
         return {
-            "name": "DeepSeek 配置",
+            "name": "DeepSeek config",
             "ok": False,
-            "detail": "配置文件存在，但 `DEEPSEEK_API_KEY` 为空：{}".format(CONFIG_PATH),
+            "detail": "Config file exists but `DEEPSEEK_API_KEY` is empty: {}".format(CONFIG_PATH),
         }
 
     return {
-        "name": "DeepSeek 配置",
+        "name": "DeepSeek config",
         "ok": True,
-        "detail": "配置文件存在，API Key 已填写：{}".format(CONFIG_PATH),
+        "detail": "Config file exists, API Key is set: {}".format(CONFIG_PATH),
     }
 
 
@@ -113,15 +113,15 @@ def check_extension_structure():
 
     if not EXTENSION_DIR.exists():
         return {
-            "name": "扩展目录结构",
+            "name": "Extension directory structure",
             "ok": False,
-            "detail": "未找到扩展目录：{}".format(EXTENSION_DIR),
+            "detail": "Extension directory not found: {}".format(EXTENSION_DIR),
         }
 
     for relative_path in REQUIRED_EXTENSION_FILES:
         full_path = EXTENSION_DIR / relative_path
         if not full_path.exists():
-            issues.append("缺少文件：{}".format(full_path.relative_to(ROOT_DIR)))
+            issues.append("Missing file: {}".format(full_path.relative_to(ROOT_DIR)))
 
     for directory in EXTENSION_DIR.rglob("*"):
         if not directory.is_dir():
@@ -131,24 +131,24 @@ def check_extension_structure():
             for filename in ("bundle.yaml", "script.py"):
                 target = directory / filename
                 if not target.exists():
-                    issues.append("缺少文件：{}".format(target.relative_to(ROOT_DIR)))
+                    issues.append("Missing file: {}".format(target.relative_to(ROOT_DIR)))
 
         if directory.name.endswith(".panel") or directory.name.endswith(".tab"):
             target = directory / "bundle.yaml"
             if not target.exists():
-                issues.append("缺少文件：{}".format(target.relative_to(ROOT_DIR)))
+                issues.append("Missing file: {}".format(target.relative_to(ROOT_DIR)))
 
     if issues:
         return {
-            "name": "扩展目录结构",
+            "name": "Extension directory structure",
             "ok": False,
-            "detail": "发现 {} 个问题：{}".format(len(issues), "；".join(issues)),
+            "detail": "Found {} issue(s): {}".format(len(issues), "; ".join(issues)),
         }
 
     return {
-        "name": "扩展目录结构",
+        "name": "Extension directory structure",
         "ok": True,
-        "detail": "AISmartBuild.extension 目录结构完整",
+        "detail": "AISmartBuild.extension directory structure is complete",
     }
 
 
@@ -160,23 +160,23 @@ def main():
         check_extension_structure(),
     ]
 
-    print("=== AI 智建 — 环境检查报告 ===")
-    print("项目目录：{}".format(ROOT_DIR))
-    print("运行平台：{} {}".format(platform.system(), platform.release()))
+    print("=== AI SmartBuild — Environment Check Report ===")
+    print("Project directory: {}".format(ROOT_DIR))
+    print("Platform: {} {}".format(platform.system(), platform.release()))
     print()
 
     failed_count = 0
     for item in checks:
-        prefix = "通过" if item["ok"] else "失败"
+        prefix = "PASS" if item["ok"] else "FAIL"
         if not item["ok"]:
             failed_count += 1
-        print("[{}] {}：{}".format(prefix, item["name"], item["detail"]))
+        print("[{}] {}: {}".format(prefix, item["name"], item["detail"]))
 
     print()
     if failed_count == 0:
-        print("总体结论：环境检查通过，可以继续安装或联调。")
+        print("Overall: Environment check passed, ready to proceed with installation or integration.")
     else:
-        print("总体结论：发现 {} 项待处理问题，请按上面的提示修正。".format(failed_count))
+        print("Overall: Found {} issue(s) to resolve, please fix according to the hints above.".format(failed_count))
 
     return 0
 

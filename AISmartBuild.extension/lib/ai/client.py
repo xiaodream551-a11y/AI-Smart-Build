@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""DeepSeek API 客户端 — 适配 pyRevit IronPython 环境"""
+"""DeepSeek API client -- compatible with the pyRevit IronPython environment."""
 
 import json
 import re
@@ -43,7 +43,7 @@ MAX_CONVERSATION_TURNS = CONFIG_MAX_CONVERSATION_TURNS
 
 
 def call_deepseek(messages, api_key=None, model=None, api_url=None, timeout_ms=None):
-    """直接调用 DeepSeek 聊天接口并返回原始响应文本。"""
+    """Call the DeepSeek chat API directly and return the raw response text."""
     client = DeepSeekClient(
         api_key=api_key,
         model=model,
@@ -54,7 +54,7 @@ def call_deepseek(messages, api_key=None, model=None, api_url=None, timeout_ms=N
 
 
 class DeepSeekClient(object):
-    """DeepSeek API 客户端"""
+    """DeepSeek API client."""
 
     MAX_CONVERSATION_TURNS = MAX_CONVERSATION_TURNS
 
@@ -71,12 +71,15 @@ class DeepSeekClient(object):
 
     def chat(self, user_message, timeout_ms=None):
         """
-        发送消息并获取回复。
+        Send a message and receive a reply.
+
         Args:
-            user_message: 用户输入的中文文本
-            timeout_ms: 可选请求超时，单位毫秒；为空时使用全局默认值
+            user_message: User input text (Chinese natural language).
+            timeout_ms: Optional request timeout in milliseconds; uses the
+                global default when not provided.
+
         Returns:
-            大模型回复的文本（应为 JSON 字符串）
+            The LLM reply text (expected to be a JSON string).
         """
         self.conversation.append({"role": "user", "content": user_message})
         self._trim_conversation_history(preserve_pending_user=True)
@@ -118,7 +121,7 @@ class DeepSeekClient(object):
             raise
 
     def reset(self):
-        """重置对话历史。"""
+        """Reset the conversation history."""
         self.conversation = [
             {"role": "system", "content": SYSTEM_PROMPT}
         ]
@@ -131,7 +134,7 @@ class DeepSeekClient(object):
         })
 
     def _http_post(self, payload, timeout_ms=None):
-        """通过 .NET HttpWebRequest 发送 POST 请求，并在可重试场景下自动重试。"""
+        """Send a POST request via .NET HttpWebRequest with automatic retry on retryable errors."""
         if HttpWebRequest is None or Encoding is None:
             raise RuntimeError("当前环境不支持 .NET HTTP 请求")
 
@@ -150,7 +153,7 @@ class DeepSeekClient(object):
                 self._wait_before_retry(retry_index + 1)
 
     def _http_post_once(self, payload, timeout_ms):
-        """执行一次 HTTP POST 请求。"""
+        """Execute a single HTTP POST request."""
         request = HttpWebRequest.Create(self.api_url)
         request.Method = "POST"
         request.ContentType = "application/json"

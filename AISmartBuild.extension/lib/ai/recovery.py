@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AI 对话错误恢复与提示。"""
+"""AI chat error recovery and user-facing suggestions."""
 
 from ai.chat_common import TRANSACTIONAL_ACTIONS
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AI 对话共享执行与输出辅助。"""
+"""Shared execution and output helpers for the AI chat workflow."""
 
 import json
 
@@ -21,7 +21,7 @@ TRANSACTIONAL_ACTIONS = set([
 
 
 def get_all_levels(doc):
-    """获取当前文档中的全部标高并按高程排序。"""
+    """Retrieve all levels in the current document, sorted by elevation."""
     return get_sorted_levels(doc)
 
 

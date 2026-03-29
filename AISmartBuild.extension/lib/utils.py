@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AI 智建 — 工具函数（单位转换、族类型查找）"""
+"""AI SmartBuild -- Utility functions (unit conversion, family type lookup)."""
 
 from pyrevit import DB
 
@@ -24,26 +24,26 @@ _CHINESE_DIGIT_MAP = {
 }
 
 # ============================================================
-# 单位转换  (Revit 内部单位 = 英尺)
+# Unit conversion (Revit internal unit = feet)
 # ============================================================
 _MM_PER_FOOT = 304.8
 
 def mm_to_feet(mm):
-    """毫米 → 英尺"""
+    """Millimeters to feet."""
     return mm / _MM_PER_FOOT
 
 def m_to_feet(m):
-    """米 → 英尺"""
+    """Meters to feet."""
     return m / 0.3048
 
 def feet_to_mm(feet):
-    """英尺 → 毫米"""
+    """Feet to millimeters."""
     return feet * _MM_PER_FOOT
 
 def parse_section(section_str):
     """
-    解析截面字符串 '400x500' → (400.0, 500.0)  单位 mm
-    支持 'x' 和 '×' 分隔符
+    Parse a cross-section string '400x500' -> (400.0, 500.0) in mm.
+    Supports 'x' and 'x' (multiplication sign) separators.
     """
     for sep in ("x", "X", "\u00d7"):  # × = \u00d7
         if sep in section_str:
@@ -62,19 +62,20 @@ def parse_section(section_str):
 
 
 # ============================================================
-# 族类型查找 / 创建
+# Family type lookup / creation
 # ============================================================
 
 def find_family_symbol(doc, category_id, family_name=None, type_name=None):
     """
-    在文档中查找族类型 (FamilySymbol)
+    Find a family type (FamilySymbol) in the document.
+
     Args:
         doc: Revit Document
-        category_id: BuiltInCategory 枚举值
-        family_name: 族名称（模糊匹配），为 None 则不筛选
-        type_name: 类型名称（模糊匹配），为 None 则不筛选
+        category_id: BuiltInCategory enum value
+        family_name: Family name (fuzzy match), None to skip filtering
+        type_name: Type name (fuzzy match), None to skip filtering
     Returns:
-        匹配的第一个 FamilySymbol，找不到返回 None
+        First matching FamilySymbol, or None if not found
     """
     collector = DB.FilteredElementCollector(doc) \
         .OfClass(DB.FamilySymbol) \
@@ -91,9 +92,10 @@ def find_family_symbol(doc, category_id, family_name=None, type_name=None):
 
 def get_or_create_column_type(doc, section_str):
     """
-    获取指定截面的柱类型，不存在则复制已有类型并修改尺寸
+    Get the column type for a given cross-section, duplicating an existing type if needed.
+
     Args:
-        section_str: 如 '500x500'
+        section_str: e.g. '500x500'
     Returns:
         FamilySymbol
     """
@@ -102,23 +104,23 @@ def get_or_create_column_type(doc, section_str):
     w, h = parse_section(section_str)
     target_name = "{}x{}".format(int(w), int(h))
 
-    # 先找完全匹配的类型
+    # First look for an exact match
     cat = DB.BuiltInCategory.OST_StructuralColumns
     existing = find_family_symbol(doc, cat, type_name=target_name)
     if existing:
         return existing
 
-    # 找一个可用的柱族作为模板
+    # Find an available column family as a template
     template = find_family_symbol(doc, cat, family_name=COLUMN_FAMILY_NAME)
     if not template:
         template = find_family_symbol(doc, cat, family_name=COLUMN_FAMILY_NAME_EN)
     if not template:
-        # 兜底：取该类别下任意一个
+        # Fallback: pick any symbol in this category
         template = find_family_symbol(doc, cat)
     if not template:
         raise Exception("未找到结构柱族，请先加载矩形柱族到项目中")
 
-    # 复制类型并修改尺寸
+    # Duplicate type and modify dimensions
     try:
         new_type = template.Duplicate(target_name)
     except Exception:
@@ -131,7 +133,7 @@ def get_or_create_column_type(doc, section_str):
 
 
 def get_or_create_beam_type(doc, section_str):
-    """获取指定截面的梁类型"""
+    """Get the beam type for a given cross-section, duplicating an existing type if needed."""
     from config import BEAM_FAMILY_NAME, BEAM_FAMILY_NAME_EN
 
     w, h = parse_section(section_str)
@@ -162,27 +164,27 @@ def get_or_create_beam_type(doc, section_str):
 
 
 def get_floor_type(doc, type_name=None):
-    """获取楼板类型"""
+    """Get a floor type."""
     from config import FLOOR_TYPE_NAME, FLOOR_TYPE_NAME_EN
 
     collector = DB.FilteredElementCollector(doc) \
         .OfClass(DB.FloorType)
 
-    # 按名称查找
+    # Look up by name
     for name in [type_name, FLOOR_TYPE_NAME, FLOOR_TYPE_NAME_EN]:
         if name:
             for ft in collector:
                 if name in ft.Name:
                     return ft
 
-    # 兜底：返回第一个
+    # Fallback: return the first available
     for ft in collector:
         return ft
     raise Exception("未找到楼板类型")
 
 
 def find_level_by_name(doc, name):
-    """按名称查找标高"""
+    """Find a level by name."""
     collector = DB.FilteredElementCollector(doc) \
         .OfClass(DB.Level)
     for level in collector:
@@ -192,7 +194,7 @@ def find_level_by_name(doc, name):
 
 
 def find_level_by_elevation(doc, elevation_feet, tolerance=0.01):
-    """按高程查找标高（英尺）"""
+    """Find a level by elevation (in feet)."""
     collector = DB.FilteredElementCollector(doc) \
         .OfClass(DB.Level)
     for level in collector:
@@ -202,19 +204,19 @@ def find_level_by_elevation(doc, elevation_feet, tolerance=0.01):
 
 
 def get_sorted_levels(doc):
-    """获取按高程排序后的所有标高"""
+    """Get all levels sorted by elevation."""
     levels = list(DB.FilteredElementCollector(doc).OfClass(DB.Level))
     levels.sort(key=lambda level: level.Elevation)
     return levels
 
 
 def get_story_count(levels):
-    """根据标高列表计算可用层数"""
+    """Calculate the number of usable stories from the level list."""
     return max(len(levels) - 1, 0)
 
 
 def normalize_floor_number(value):
-    """将楼层值标准化为正整数，失败返回 None"""
+    """Normalize a floor number value to a positive integer; returns None on failure."""
     if isinstance(value, string_types):
         text = value.strip()
         if not text:
@@ -287,8 +289,8 @@ def _parse_simple_chinese_number(text):
 
 def resolve_floor_boundary_level(levels, floor_number):
     """
-    按楼层边界编号解析标高
-    1 -> ±0.000, 2 -> F1, 3 -> F2 ...
+    Resolve a level by floor boundary number.
+    1 -> +-0.000, 2 -> F1, 3 -> F2 ...
     """
     floor_index = normalize_floor_number(floor_number)
     if floor_index is None or floor_index > len(levels):
@@ -298,8 +300,8 @@ def resolve_floor_boundary_level(levels, floor_number):
 
 def resolve_story_base_level(levels, floor_number):
     """
-    按故事层号解析柱底标高
-    1 -> ±0.000, 2 -> F1 ...
+    Resolve the column base level by story number.
+    1 -> +-0.000, 2 -> F1 ...
     """
     floor_index = normalize_floor_number(floor_number)
     story_count = get_story_count(levels)
@@ -310,7 +312,7 @@ def resolve_story_base_level(levels, floor_number):
 
 def resolve_story_framing_level(levels, floor_number):
     """
-    按故事层号解析梁板所在标高
+    Resolve the beam/slab level by story number.
     1 -> F1, 2 -> F2 ...
     """
     floor_index = normalize_floor_number(floor_number)
@@ -321,7 +323,7 @@ def resolve_story_framing_level(levels, floor_number):
 
 
 def is_column_category(category):
-    """判断类别是否属于柱。"""
+    """Check whether the category is a column category."""
     if category == DB.BuiltInCategory.OST_StructuralColumns:
         return True
 
@@ -332,14 +334,14 @@ def is_column_category(category):
 
 
 def resolve_story_level_by_category(levels, category, floor_number):
-    """按类别语义解析故事层对应标高。"""
+    """Resolve the level for a story based on element category semantics."""
     if is_column_category(category):
         return resolve_story_base_level(levels, floor_number)
     return resolve_story_framing_level(levels, floor_number)
 
 
 def list_story_floor_choices(levels, category):
-    """返回可选故事层列表，元素为 (floor_number, level)。"""
+    """Return a list of available story choices as (floor_number, level) tuples."""
     choices = []
     for floor_number in range(1, get_story_count(levels) + 1):
         level = resolve_story_level_by_category(levels, category, floor_number)
@@ -349,17 +351,17 @@ def list_story_floor_choices(levels, category):
 
 
 # ============================================================
-# 内部辅助
+# Internal helpers
 # ============================================================
 
 def _set_section_params(symbol, width_mm, height_mm):
-    """设置族类型的截面宽高参数（尝试常见参数名）"""
+    """Set cross-section width and height parameters on a family type (tries common parameter names)."""
     w_feet = mm_to_feet(width_mm)
     h_feet = mm_to_feet(height_mm)
 
-    # 常见的宽度参数名
+    # Common width parameter names
     width_names = ["b", "B", "Width", "宽度"]
-    # 常见的高度参数名
+    # Common height parameter names
     height_names = ["h", "H", "Depth", "Height", "高度"]
 
     for name in width_names:

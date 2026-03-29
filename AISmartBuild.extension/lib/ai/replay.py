@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AI 对话历史回放与失败筛选。"""
+"""AI chat history replay and failed-command filtering."""
 
 from pyrevit import forms
 
@@ -33,7 +33,7 @@ from ai.recovery import (
 
 
 class ReplayCommandOption(object):
-    """会话回放选项。"""
+    """Option entry for the session replay picker."""
 
     def __init__(self, entry):
         self.entry = entry
@@ -66,7 +66,7 @@ class ReplayCommandOption(object):
 
 
 class ReplayActionFilterOption(object):
-    """失败回放动作筛选项。"""
+    """Filter option for replaying failed commands by action type."""
 
     def __init__(self, action, entries):
         self.action = action
@@ -81,7 +81,7 @@ class ReplayActionFilterOption(object):
 
 
 class ReplaySourceFilterOption(object):
-    """失败回放来源筛选项。"""
+    """Filter option for replaying failed commands by source kind."""
 
     def __init__(self, source_filter_kind, entries):
         self.source_filter_kind = source_filter_kind
@@ -99,7 +99,7 @@ class ReplaySourceFilterOption(object):
 
 
 class ReplayNavigationOption(object):
-    """失败回放相邻导航选项。"""
+    """Navigation option for stepping to the previous/next failed entry."""
 
     def __init__(self, direction, entry):
         self.direction = direction

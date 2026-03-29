@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""离线调试辅助：在非 Revit 环境下导入 pyRevit 相关模块。"""
+"""Offline debug helper: import pyRevit-related modules outside the Revit environment."""
 
 import importlib.util
 import sys
@@ -12,21 +12,21 @@ LIB_DIR = ROOT_DIR / "AISmartBuild.extension" / "lib"
 
 
 class FakeElementId(object):
-    """简化版 ElementId。"""
+    """Simplified ElementId stub."""
 
     def __init__(self, value):
         self.IntegerValue = int(value)
 
 
 class FakeStorageType(object):
-    """简化版 StorageType 枚举。"""
+    """Simplified StorageType enum stub."""
 
     ElementId = "ElementId"
     Double = "Double"
 
 
 class FakeBuiltInCategory(object):
-    """简化版 BuiltInCategory 枚举。"""
+    """Simplified BuiltInCategory enum stub."""
 
     OST_StructuralColumns = 1
     OST_StructuralFraming = 2
@@ -34,7 +34,7 @@ class FakeBuiltInCategory(object):
 
 
 class FakeBuiltInParameter(object):
-    """简化版 BuiltInParameter 枚举。"""
+    """Simplified BuiltInParameter enum stub."""
 
     FAMILY_BASE_LEVEL_PARAM = "FAMILY_BASE_LEVEL_PARAM"
     FAMILY_TOP_LEVEL_PARAM = "FAMILY_TOP_LEVEL_PARAM"
@@ -49,7 +49,7 @@ class FakeBuiltInParameter(object):
 
 
 class FakeCategory(object):
-    """简化版 Category。"""
+    """Simplified Category stub."""
 
     def __init__(self, builtin, name=None):
         self.Id = FakeElementId(int(builtin))
@@ -57,7 +57,7 @@ class FakeCategory(object):
 
 
 class FakeLevel(object):
-    """简化版 Level。"""
+    """Simplified Level stub."""
 
     def __init__(self, name, elevation, element_id):
         self.Name = name
@@ -66,7 +66,7 @@ class FakeLevel(object):
 
 
 class FakeParameter(object):
-    """简化版 Parameter。"""
+    """Simplified Parameter stub."""
 
     def __init__(self, value=None, storage_type=None, read_only=False):
         self._value = value
@@ -89,7 +89,7 @@ class FakeParameter(object):
 
 
 class FakeXYZ(object):
-    """简化版 XYZ。"""
+    """Simplified XYZ stub."""
 
     def __init__(self, x=0.0, y=0.0, z=0.0):
         self.X = float(x)
@@ -98,7 +98,7 @@ class FakeXYZ(object):
 
 
 class FakeCurve(object):
-    """简化版 Curve。"""
+    """Simplified Curve stub."""
 
     def __init__(self, start, end):
         self._points = [start, end]
@@ -108,21 +108,21 @@ class FakeCurve(object):
 
 
 class FakePointLocation(object):
-    """简化版点位置。"""
+    """Simplified point location stub."""
 
     def __init__(self, point):
         self.Point = point
 
 
 class FakeCurveLocation(object):
-    """简化版线位置。"""
+    """Simplified curve location stub."""
 
     def __init__(self, curve):
         self.Curve = curve
 
 
 class FakeElementType(object):
-    """简化版族类型。"""
+    """Simplified family type stub."""
 
     def __init__(self, element_id, name="", lookup_params=None):
         self.Id = FakeElementId(element_id)
@@ -135,7 +135,7 @@ class FakeElementType(object):
 
 
 class FakeElement(object):
-    """简化版模型元素。"""
+    """Simplified model element stub."""
 
     def __init__(
         self,
@@ -173,7 +173,7 @@ class FakeElement(object):
 
 
 class FakeDocument(object):
-    """简化版 Revit Document。"""
+    """Simplified Revit Document stub."""
 
     def __init__(self, levels=None, elements=None, element_types=None):
         self.levels = list(levels or [])
@@ -196,7 +196,7 @@ class FakeDocument(object):
 
 
 class FakeFilteredElementCollector(object):
-    """简化版 FilteredElementCollector。"""
+    """Simplified FilteredElementCollector stub."""
 
     def __init__(self, doc):
         self.doc = doc
@@ -291,7 +291,7 @@ class _FakeGenericListFactory(object):
 
 
 def ensure_lib_path():
-    """把项目根目录和 lib 目录加入 sys.path。"""
+    """Add the project root and lib directories to sys.path."""
     root = str(ROOT_DIR)
     lib = str(LIB_DIR)
 
@@ -304,7 +304,7 @@ def ensure_lib_path():
 
 
 def install_clr_stub():
-    """安装最小可用的 clr/System stub。"""
+    """Install minimal clr/System stubs."""
     if "clr" not in sys.modules:
         clr_module = types.ModuleType("clr")
         clr_module.AddReference = lambda _name: None
@@ -327,7 +327,7 @@ def install_clr_stub():
 
 
 def install_pyrevit_stub():
-    """安装最小可用的 pyrevit stub。"""
+    """Install minimal pyrevit stubs."""
     pyrevit_module = types.ModuleType("pyrevit")
     pyrevit_module.__path__ = []
     pyrevit_module.DB = FakeDB
@@ -356,7 +356,7 @@ def install_pyrevit_stub():
 
 
 def make_story_levels(story_count):
-    """按项目约定生成一组故事层标高。"""
+    """Generate a set of story levels following project conventions."""
     levels = [FakeLevel("±0.000", 0.0, 1)]
 
     for index in range(1, story_count):
@@ -367,7 +367,7 @@ def make_story_levels(story_count):
 
 
 def load_module_from_path(module_name, relative_path):
-    """按相对路径加载项目中的 Python 文件。"""
+    """Load a Python file from the project by relative path."""
     file_path = ROOT_DIR / relative_path
     if module_name in sys.modules:
         del sys.modules[module_name]
@@ -379,7 +379,7 @@ def load_module_from_path(module_name, relative_path):
 
 
 def bootstrap():
-    """一次性完成离线导入准备。"""
+    """Perform one-time offline import preparation."""
     ensure_lib_path()
     install_clr_stub()
     install_pyrevit_stub()

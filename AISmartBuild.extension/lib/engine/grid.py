@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""轴网创建"""
+"""Grid creation."""
 
 from pyrevit import DB
 from utils import mm_to_feet
@@ -7,13 +7,14 @@ from utils import mm_to_feet
 
 def create_grid(doc, name, start_x_mm, start_y_mm, end_x_mm, end_y_mm):
     """
-    创建一根轴线
+    Create a single grid line.
+
     Args:
         doc: Revit Document
-        name: 轴号，如 "1" 或 "A"
-        start_x/y_mm, end_x/y_mm: 起止点坐标 (mm)
+        name: Grid label, e.g. "1" or "A"
+        start_x/y_mm, end_x/y_mm: Start and end point coordinates (mm)
     Returns:
-        Grid 对象
+        Grid object
     """
     start = DB.XYZ(mm_to_feet(start_x_mm), mm_to_feet(start_y_mm), 0)
     end = DB.XYZ(mm_to_feet(end_x_mm), mm_to_feet(end_y_mm), 0)
@@ -27,16 +28,17 @@ def create_grid(doc, name, start_x_mm, start_y_mm, end_x_mm, end_y_mm):
 def create_grid_system(doc, x_coords_mm, y_coords_mm,
                        x_labels=None, y_labels=None, extension_mm=1500):
     """
-    创建完整的轴网系统
+    Create a complete grid system.
+
     Args:
         doc: Revit Document
-        x_coords_mm: X 方向各轴线的 X 坐标列表 [0, 6000, 12000, ...]
-        y_coords_mm: Y 方向各轴线的 Y 坐标列表 [0, 6000, 12000, ...]
-        x_labels: X 向轴号列表 ["1","2","3",...]，默认自动编号
-        y_labels: Y 向轴号列表 ["A","B","C",...]，默认自动编号
-        extension_mm: 轴线超出边界的延伸长度
+        x_coords_mm: X-direction grid line X coordinates [0, 6000, 12000, ...]
+        y_coords_mm: Y-direction grid line Y coordinates [0, 6000, 12000, ...]
+        x_labels: X-direction grid labels ["1","2","3",...], auto-numbered by default
+        y_labels: Y-direction grid labels ["A","B","C",...], auto-numbered by default
+        extension_mm: Extension length beyond the grid boundary
     Returns:
-        (x_grids, y_grids) 两个列表
+        (x_grids, y_grids) two lists
     """
     from config import GRID_LABELS_X, GRID_LABELS_Y
 
@@ -53,13 +55,13 @@ def create_grid_system(doc, x_coords_mm, y_coords_mm,
     x_grids = []
     y_grids = []
 
-    # X 方向轴线（竖线，沿 Y 方向画）
+    # X-direction grid lines (vertical lines, drawn along Y-axis)
     for i, x in enumerate(x_coords_mm):
         label = x_labels[i] if i < len(x_labels) else str(i + 1)
         grid = create_grid(doc, label, x, y_min, x, y_max)
         x_grids.append(grid)
 
-    # Y 方向轴线（横线，沿 X 方向画）
+    # Y-direction grid lines (horizontal lines, drawn along X-axis)
     for i, y in enumerate(y_coords_mm):
         label = y_labels[i] if i < len(y_labels) else chr(65 + i)
         grid = create_grid(doc, label, x_min, y, x_max, y)

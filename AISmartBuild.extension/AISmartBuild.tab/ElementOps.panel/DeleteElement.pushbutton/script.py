@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""删除指定构件或按条件批量删除"""
+"""Delete specified elements or batch-delete by filter criteria."""
 
 __doc__ = "删除选中构件，或按楼层/类型批量删除"
 __title__ = "删除\n构件"
@@ -17,7 +17,7 @@ MODE_BATCH = u"批量删除"
 
 
 class FloorOption(object):
-    """楼层选择项"""
+    """Floor selection option."""
 
     def __init__(self, name, floor_number=None):
         self.Name = name

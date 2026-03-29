@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AI 对话会话日志解析与加载。"""
+"""AI chat conversation log parsing and loading utilities."""
 
 import io
 import json

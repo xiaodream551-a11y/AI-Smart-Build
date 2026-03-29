@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AI 对话智能建模"""
+"""AI chat-based intelligent modeling."""
 
 __doc__ = "用中文对话控制 Revit 建模 — 输入指令，AI 自动执行"
 __title__ = "智能\n对话"

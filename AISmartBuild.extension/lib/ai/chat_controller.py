@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AI 对话流程控制。"""
+"""AI chat flow control -- handles user input routing, retries, and turn execution."""
 
 import time
 

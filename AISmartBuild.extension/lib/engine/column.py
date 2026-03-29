@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""结构柱创建"""
+"""Structural column creation."""
 
 from pyrevit import DB
 from utils import mm_to_feet, get_or_create_column_type, parse_section
@@ -7,15 +7,16 @@ from utils import mm_to_feet, get_or_create_column_type, parse_section
 
 def create_column(doc, x_mm, y_mm, base_level, top_level, section="500x500"):
     """
-    在指定位置创建一根结构柱
+    Create a structural column at the specified location.
+
     Args:
         doc: Revit Document
-        x_mm, y_mm: 柱中心坐标 (mm)
-        base_level: 底部标高 (Level 对象)
-        top_level: 顶部标高 (Level 对象)
-        section: 截面尺寸字符串，如 "500x500" (mm)
+        x_mm, y_mm: Column center coordinates (mm)
+        base_level: Base level (Level object)
+        top_level: Top level (Level object)
+        section: Cross-section dimension string, e.g. "500x500" (mm)
     Returns:
-        FamilyInstance 柱实例
+        FamilyInstance column instance
     """
     parse_section(section)
     if base_level is None:
@@ -30,10 +31,10 @@ def create_column(doc, x_mm, y_mm, base_level, top_level, section="500x500"):
         col_type.Activate()
         doc.Regenerate()
 
-    # 柱定位点
+    # Column insertion point
     point = DB.XYZ(mm_to_feet(x_mm), mm_to_feet(y_mm), base_level.Elevation)
 
-    # 创建结构柱
+    # Create structural column
     column = doc.Create.NewFamilyInstance(
         point,
         col_type,
@@ -41,14 +42,14 @@ def create_column(doc, x_mm, y_mm, base_level, top_level, section="500x500"):
         DB.Structure.StructuralType.Column
     )
 
-    # 设置顶部约束到上一层标高
+    # Set top constraint to the upper level
     top_param = column.get_Parameter(
         DB.BuiltInParameter.FAMILY_TOP_LEVEL_PARAM
     )
     if top_param:
         top_param.Set(top_level.Id)
 
-    # 顶部偏移归零
+    # Reset top offset to zero
     top_offset = column.get_Parameter(
         DB.BuiltInParameter.FAMILY_TOP_LEVEL_OFFSET_PARAM
     )
@@ -61,14 +62,15 @@ def create_column(doc, x_mm, y_mm, base_level, top_level, section="500x500"):
 def create_columns_on_grid(doc, x_coords_mm, y_coords_mm,
                            base_level, top_level, section="500x500"):
     """
-    在所有轴线交点处创建柱子
+    Create columns at all grid intersections.
+
     Args:
-        x_coords_mm: X 向坐标列表 [0, 6000, 12000, ...]
-        y_coords_mm: Y 向坐标列表 [0, 6000, ...]
-        base_level, top_level: 底部和顶部标高
-        section: 柱截面
+        x_coords_mm: X-direction coordinate list [0, 6000, 12000, ...]
+        y_coords_mm: Y-direction coordinate list [0, 6000, ...]
+        base_level, top_level: Base and top levels
+        section: Column cross-section
     Returns:
-        所有柱实例的列表
+        List of all column instances
     """
     columns = []
     for x in x_coords_mm:

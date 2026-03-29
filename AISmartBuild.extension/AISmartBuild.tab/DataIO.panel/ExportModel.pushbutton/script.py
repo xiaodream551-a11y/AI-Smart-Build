@@ -1,6 +1,6 @@
 #! python3
 # -*- coding: utf-8 -*-
-"""导出当前模型中的柱、梁、板。"""
+"""Export columns, beams, and slabs from the current model."""
 
 __doc__ = "将当前模型中的柱、梁、板导出为 Excel 和 JSON"
 __title__ = "导出\n模型"

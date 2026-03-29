@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""查看插件版本与环境信息。"""
+"""View plugin version and environment information."""
 
 __doc__ = "查看插件版本与环境信息"
 __title__ = "关于"

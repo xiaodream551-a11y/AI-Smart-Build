@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-框架结构一键生成器
-编排：轴网 → 标高 → 逐层(柱 → 梁 → 板) 的完整生成流程
+Frame structure one-click generator.
+Orchestrates the full generation pipeline: grids -> levels -> per-story (columns -> beams -> slabs).
 """
 
 from engine.grid import create_grid_system
@@ -14,27 +14,28 @@ from utils import parse_section
 
 def generate_frame(doc, params, progress_callback=None):
     """
-    一键生成完整框架结构
+    Generate a complete frame structure in one step.
+
     Args:
         doc: Revit Document
-        params: dict，包含以下字段:
-            x_spans:       X 向各跨跨距列表 [6000, 6000, 6000] (mm)
-            y_spans:       Y 向各跨跨距列表 [6000, 6000] (mm)
-            num_floors:    层数 (int)
-            floor_height:  标准层高 (mm)
-            first_floor_height: 首层层高 (mm)，可选，默认同标准层高
-            column_section: 柱截面，如 "500x500"
-            beam_section_x: X 向梁截面，如 "300x600"
-            beam_section_y: Y 向梁截面，如 "300x600"，可选，默认同 X 向
-        progress_callback: 进度回调函数 fn(msg)，可选
+        params: dict with the following fields:
+            x_spans:       X-direction span distances [6000, 6000, 6000] (mm)
+            y_spans:       Y-direction span distances [6000, 6000] (mm)
+            num_floors:    Number of stories (int)
+            floor_height:  Standard story height (mm)
+            first_floor_height: First floor height (mm), optional, defaults to standard
+            column_section: Column cross-section, e.g. "500x500"
+            beam_section_x: X-direction beam cross-section, e.g. "300x600"
+            beam_section_y: Y-direction beam cross-section, e.g. "300x600", optional, defaults to X
+        progress_callback: Progress callback function fn(msg), optional
     Returns:
-        dict 统计信息
+        dict with statistics
     """
     def log(msg):
         if progress_callback:
             progress_callback(msg)
 
-    # ---------- 解析参数 ----------
+    # ---------- Parse parameters ----------
     x_spans = params["x_spans"]
     y_spans = params["y_spans"]
     num_floors = params["num_floors"]
@@ -62,7 +63,7 @@ def generate_frame(doc, params, progress_callback=None):
     _validate_section(beam_section_x, "X 向梁截面")
     _validate_section(beam_section_y, "Y 向梁截面")
 
-    # ---------- 计算轴线坐标 ----------
+    # ---------- Calculate grid coordinates ----------
     x_coords = [0]
     for span in x_spans:
         x_coords.append(x_coords[-1] + span)
@@ -76,25 +77,25 @@ def generate_frame(doc, params, progress_callback=None):
         "columns": 0, "beams": 0, "floors": 0,
     }
 
-    # ---------- 1. 创建轴网 ----------
+    # ---------- 1. Create grids ----------
     log("正在创建轴网...")
     x_grids, y_grids = create_grid_system(doc, x_coords, y_coords)
     stats["grids"] = len(x_grids) + len(y_grids)
 
-    # ---------- 2. 创建标高 ----------
+    # ---------- 2. Create levels ----------
     log("正在创建标高...")
     levels = create_level_system(
         doc, num_floors, floor_height, first_floor_height
     )
     stats["levels"] = len(levels)
 
-    # ---------- 3. 逐层创建构件 ----------
+    # ---------- 3. Create elements per story ----------
     for floor_idx in range(num_floors):
-        base_level = levels[floor_idx]       # 本层底标高
-        top_level = levels[floor_idx + 1]    # 本层顶标高
+        base_level = levels[floor_idx]       # Base level for this story
+        top_level = levels[floor_idx + 1]    # Top level for this story
         floor_num = floor_idx + 1
 
-        # 3a. 柱（从底标高到顶标高）
+        # 3a. Columns (from base level to top level)
         log("正在生成第 {} 层柱...".format(floor_num))
         cols = create_columns_on_grid(
             doc, x_coords, y_coords,
@@ -102,7 +103,7 @@ def generate_frame(doc, params, progress_callback=None):
         )
         stats["columns"] += len(cols)
 
-        # 3b. 梁（放在顶标高）
+        # 3b. Beams (placed at top level)
         log("正在生成第 {} 层梁...".format(floor_num))
         bms = create_beams_on_grid(
             doc, x_coords, y_coords,
@@ -110,7 +111,7 @@ def generate_frame(doc, params, progress_callback=None):
         )
         stats["beams"] += len(bms)
 
-        # 3c. 楼板（放在顶标高）
+        # 3c. Floor slabs (placed at top level)
         log("正在生成第 {} 层板...".format(floor_num))
         slab = create_floors_on_grid(doc, x_coords, y_coords, top_level)
         stats["floors"] += 1
@@ -120,7 +121,7 @@ def generate_frame(doc, params, progress_callback=None):
 
 
 def format_stats(stats):
-    """将统计信息格式化为中文摘要"""
+    """Format statistics into a Chinese summary string."""
     return (
         "生成完成：\n"
         "  轴线 {grids} 根\n"

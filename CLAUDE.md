@@ -1,44 +1,44 @@
-# AI 智建 — 自然语言驱动的 Revit 智能建模系统
+# AI SmartBuild — Natural-Language-Driven Intelligent Modeling System for Revit
 
-## 项目概述
+## Project Overview
 
-基于 pyRevit 的 Revit 插件，包含两大核心功能：
+A Revit plugin built on pyRevit with two core capabilities:
 
-1. **参数化框架结构一键建模**：输入结构参数（层数、层高、跨数、跨距、截面），自动生成完整框架结构模型（轴网、标高、柱、梁、板）
-2. **自然语言智能建模**：通过中文对话控制 Revit 建模，大语言模型将自然语言解析为结构化 JSON 指令，调用共享的建模引擎执行
+1. **Parametric Frame Structure One-Click Generation**: Enter structural parameters (number of stories, story height, number of spans, span lengths, cross-sections) to automatically generate a complete frame structure model (grids, levels, columns, beams, slabs).
+2. **Natural Language Intelligent Modeling**: Control Revit modeling through Chinese dialogue; a large language model parses natural language into structured JSON commands, which are then executed by the shared modeling engine.
 
-## 技术栈
+## Tech Stack
 
-- **BIM 平台**：Revit 2024（教育版）
-- **开发框架**：pyRevit（Python）
-- **大模型 API**：DeepSeek（中文优秀、成本低）
-- **数据处理**：openpyxl（Excel）、json（指令解析）
-- **UI**：pyRevit forms / WPF
+- **BIM Platform**: Revit 2024 (Education Edition)
+- **Development Framework**: pyRevit (Python)
+- **LLM API**: DeepSeek (excellent Chinese support, low cost)
+- **Data Processing**: openpyxl (Excel), json (command parsing)
+- **UI**: pyRevit forms / WPF
 
-## 架构设计
+## Architecture
 
 ```
-表现层 → 参数化面板（表单） / AI 对话面板（自然语言）
-            ↓                      ↓
-                              大模型 API → JSON 指令
-            ↓                      ↓
-         建模引擎（共享核心函数）
-            ↓
-        Revit API (pyRevit)
+Presentation Layer -> Parametric Panel (Form) / AI Chat Panel (Natural Language)
+                        |                          |
+                                            LLM API -> JSON Commands
+                        |                          |
+                     Modeling Engine (Shared Core Functions)
+                        |
+                    Revit API (pyRevit)
 ```
 
-关键设计：两个入口共享同一套建模引擎（create_column/create_beam/create_slab 等）。
+Key design: Both entry points share the same modeling engine (create_column/create_beam/create_slab, etc.).
 
-## 核心函数清单
+## Core Function List
 
 - `create_column(x, y, base_level, top_level, section)`
 - `create_beam(start_point, end_point, level, section)`
 - `create_floor(boundary_curves, level, floor_type)`
 - `create_grid(name, start_point, end_point)`
-- `modify_element()` — 修改构件属性
-- `delete_element()` — 删除构件
+- `modify_element()` — Modify element properties
+- `delete_element()` — Delete an element
 
-## AI 对话 JSON 指令格式
+## AI Chat JSON Command Format
 
 ```json
 {
@@ -53,23 +53,23 @@
 }
 ```
 
-支持的 action：create_column, create_beam, create_slab, modify_section, delete_element, generate_frame, query_count, query_detail, query_summary
+Supported actions: create_column, create_beam, create_slab, modify_section, delete_element, generate_frame, query_count, query_detail, query_summary
 
-## 开发规范
+## Development Conventions
 
-- 所有自然语言输出使用简体中文
-- 代码注释可以用中文
-- 变量名、函数名使用英文（snake_case）
-- Revit API 操作必须在 Transaction 内执行
+- All natural-language output uses Simplified Chinese
+- Code comments may be in Chinese
+- Variable and function names use English (snake_case)
+- Revit API operations must be executed within a Transaction
 
-## 开发约束
+## Development Constraints
 
-- 所有新功能必须有离线测试（Mac 上能跑 `pytest`，不依赖 Revit 环境）
-- 新 action 必须同步更新以下 6 处：parser alias、recovery、logger、prompt、回归用例、dispatch 测试
-- `engine/` 下的函数不能直接 `from pyrevit import DB`，通过参数传入 DB（保证离线可测）
-- `parser.py` 和 `export.py` 共用的元素属性函数统一放在 `engine/element_utils.py`，禁止重复实现
-- 回归用例文件：`examples/ai_reply_regression_cases.json`，新增 action 必须补充对应用例
+- Every new feature must have an offline test (runnable with `pytest` on Mac, no Revit dependency)
+- New actions must be updated in all 6 locations: parser alias, recovery, logger, prompt, regression cases, dispatch test
+- Functions under `engine/` must not directly `from pyrevit import DB`; DB is passed in as a parameter (to ensure offline testability)
+- Shared element-property functions used by both `parser.py` and `export.py` belong in `engine/element_utils.py`; duplicate implementations are prohibited
+- Regression case file: `examples/ai_reply_regression_cases.json`; new actions must include corresponding test cases
 
-## 项目文件
+## Project Files
 
-- `AI智建_项目方案书.docx` — 完整方案书（含架构、功能设计、12 周计划）
+- `AI智建_项目方案书.docx` — Full project proposal (architecture, feature design, 12-week plan)

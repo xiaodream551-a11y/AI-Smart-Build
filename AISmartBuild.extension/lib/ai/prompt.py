@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""System Prompt 模板 — 控制大模型输出固定 JSON 格式"""
+"""System prompt template -- constrains the LLM to output a fixed JSON format."""
 
 SYSTEM_PROMPT = """你是一个 Revit 建模助手。你**只能**输出一个合法的 JSON 对象或 JSON 数组，不要输出任何解释、注释、markdown 代码块包裹或其他文字。输出必须可以被 json.loads() 直接解析。
 

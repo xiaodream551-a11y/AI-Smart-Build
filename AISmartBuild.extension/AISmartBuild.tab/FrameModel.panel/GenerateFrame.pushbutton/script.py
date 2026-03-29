@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""一键生成框架结构模型"""
+"""One-click frame structure model generation."""
 
 __doc__ = "输入结构参数，自动生成完整的多层框架结构（轴网+标高+柱+梁+板）"
 __title__ = "一键\n生成"
@@ -11,11 +11,11 @@ from engine.frame_generator import generate_frame, format_stats
 from engine.logger import OperationLog, export_operation_log
 
 # ============================================================
-# 参数输入表单
+# Parameter input form
 # ============================================================
 
 class FrameParamsForm(forms.WPFWindow):
-    """框架结构参数输入面板"""
+    """Frame structure parameter input panel."""
 
     layout = """
     <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -122,12 +122,12 @@ class FrameParamsForm(forms.WPFWindow):
         forms.WPFWindow.__init__(self, self.layout, literal_string=True)
 
     def _parse_spans(self, text):
-        """解析跨距输入 '6000, 6000, 6000' → [6000.0, 6000.0, 6000.0]"""
-        parts = text.replace("\uff0c", ",").split(",")  # 兼容中文逗号
+        """Parse span input '6000, 6000, 6000' -> [6000.0, 6000.0, 6000.0]."""
+        parts = text.replace("\uff0c", ",").split(",")  # Support Chinese comma
         return [float(p.strip()) for p in parts if p.strip()]
 
     def on_generate(self, sender, args):
-        """点击生成按钮"""
+        """Handle generate button click."""
         try:
             params = {
                 "x_spans": self._parse_spans(self.tb_x_spans.Text),
@@ -151,7 +151,7 @@ class FrameParamsForm(forms.WPFWindow):
 
 
 # ============================================================
-# 主逻辑
+# Main logic
 # ============================================================
 
 def main():
@@ -159,12 +159,12 @@ def main():
     output = script.get_output()
     operation_log = OperationLog()
 
-    # 弹出参数面板
+    # Show parameter panel
     form = FrameParamsForm()
     form.ShowDialog()
 
     if not hasattr(form, "result"):
-        script.exit()  # 用户取消
+        script.exit()  # User cancelled
 
     params = form.result
 
@@ -194,7 +194,7 @@ def main():
                 if pb.cancelled:
                     raise Exception("用户取消")
 
-            # 在事务中执行建模
+            # Execute modeling within a transaction
             with revit.Transaction("AI智建：一键生成框架"):
                 stats = generate_frame(
                     doc, params,
@@ -206,7 +206,7 @@ def main():
             return
         raise
 
-    # 输出统计
+    # Output statistics
     operation_log.log("create_grid", "一键生成创建轴网", count=stats["grids"])
     operation_log.log("create_level", "一键生成创建标高", count=stats["levels"])
     operation_log.log("create_column", "一键生成创建结构柱", count=stats["columns"])
@@ -226,6 +226,6 @@ def main():
     forms.alert(message, title="AI 智建 — 生成完成")
 
 
-# 入口
+# Entry point
 if __name__ == "__main__":
     main()

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""标高创建"""
+"""Level creation."""
 
 from pyrevit import DB
 from utils import mm_to_feet, find_level_by_name, find_level_by_elevation
@@ -7,22 +7,23 @@ from utils import mm_to_feet, find_level_by_name, find_level_by_elevation
 
 def create_level(doc, name, elevation_mm):
     """
-    创建标高
+    Create a level.
+
     Args:
         doc: Revit Document
-        name: 标高名称，如 "F1", "F2"
-        elevation_mm: 标高高程 (mm)
+        name: Level name, e.g. "F1", "F2"
+        elevation_mm: Level elevation (mm)
     Returns:
-        Level 对象
+        Level object
     """
     elevation_feet = mm_to_feet(elevation_mm)
 
-    # 检查是否已存在同名标高
+    # Check if a level with the same name already exists
     existing_by_name = find_level_by_name(doc, name)
     if existing_by_name:
         return existing_by_name
 
-    # 检查是否已存在相同高程的标高
+    # Check if a level with the same elevation already exists
     existing = find_level_by_elevation(doc, elevation_feet)
     if existing:
         return existing
@@ -35,33 +36,34 @@ def create_level(doc, name, elevation_mm):
 def create_level_system(doc, num_floors, floor_height_mm,
                         first_floor_height_mm=None, base_elevation_mm=0):
     """
-    创建完整的标高系统
+    Create a complete level system.
+
     Args:
         doc: Revit Document
-        num_floors: 层数
-        floor_height_mm: 标准层高 (mm)
-        first_floor_height_mm: 首层层高 (mm)，为 None 则与标准层高相同
-        base_elevation_mm: 基础标高 (mm)，通常为 0
+        num_floors: Number of stories
+        floor_height_mm: Standard story height (mm)
+        first_floor_height_mm: First floor height (mm), defaults to standard if None
+        base_elevation_mm: Base elevation (mm), typically 0
     Returns:
-        levels 列表，从下到上 [基础, F1, F2, ..., 屋面]
+        List of levels from bottom to top [base, F1, F2, ..., roof]
     """
     if first_floor_height_mm is None:
         first_floor_height_mm = floor_height_mm
 
     levels = []
-    elevations = [base_elevation_mm]  # 基础 (±0.000)
+    elevations = [base_elevation_mm]  # Base (+-0.000)
 
-    # 逐层计算标高
+    # Calculate elevation for each floor
     for floor in range(1, num_floors + 1):
         if floor == 1:
             elevations.append(elevations[-1] + first_floor_height_mm)
         else:
             elevations.append(elevations[-1] + floor_height_mm)
 
-    # 创建标高
+    # Create levels
     level_names = ["F{}".format(i) for i in range(len(elevations))]
-    level_names[0] = "\u00b10.000"   # ±0.000 基础层
-    level_names[-1] = "屋面"          # 最顶层为屋面
+    level_names[0] = "\u00b10.000"   # +-0.000 base level
+    level_names[-1] = "屋面"          # Top level is the roof
 
     for i, (name, elev) in enumerate(zip(level_names, elevations)):
         level = create_level(doc, name, elev)

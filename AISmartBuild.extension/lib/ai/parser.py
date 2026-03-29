@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""指令解析器 — 从大模型回复中提取 JSON 并分发到建模函数"""
+"""Command parser -- extracts JSON from the LLM reply and dispatches to modelling functions."""
 
 import json
 import re
@@ -106,17 +106,20 @@ _ELEMENT_TYPE_ALIASES = {
 
 def parse_command(reply_text):
     """
-    从大模型回复中提取 JSON 指令
+    Extract a JSON command from the LLM reply text.
+
     Args:
-        reply_text: 大模型原始回复文本
+        reply_text: Raw reply text from the LLM.
+
     Returns:
-        dict: {"action": "...", "params": {...}}
+        dict: ``{"action": "...", "params": {...}}``
+
     Raises:
-        ValueError: 解析失败
+        ValueError: If no valid JSON command can be extracted.
     """
     text = reply_text.strip()
 
-    # 尝试直接解析
+    # Attempt direct JSON parsing
     try:
         payload = json.loads(text)
     except (ValueError, TypeError):
@@ -124,7 +127,7 @@ def parse_command(reply_text):
     else:
         return _normalize_parsed_command_payload(payload)
 
-    # 尝试从 markdown 代码块中提取
+    # Attempt to extract from a markdown code block
     match = re.search(r"```(?:json)?\s*\n?(.*?)\n?\s*```", text, re.DOTALL)
     if match:
         try:
@@ -134,7 +137,7 @@ def parse_command(reply_text):
         else:
             return _normalize_parsed_command_payload(payload)
 
-    # 尝试提取第一个 [...] 或 {...}
+    # Attempt to extract the first [...] or {...}
     for pattern in (r"\[.*\]", r"\{.*\}"):
         match = re.search(pattern, text, re.DOTALL)
         if match:
@@ -152,13 +155,15 @@ def parse_command(reply_text):
 
 def dispatch_command(doc, command, levels=None):
     """
-    根据 action 分发到对应的建模函数
+    Dispatch a parsed command to the corresponding modelling function.
+
     Args:
-        doc: Revit Document
-        command: parse_command 的返回值
-        levels: 标高列表（按楼层索引），用于定位楼层
+        doc: Revit Document.
+        command: Return value of ``parse_command``.
+        levels: Level list (sorted by elevation index) used for floor lookup.
+
     Returns:
-        str: 执行结果描述
+        str: A human-readable execution result description.
     """
     normalized_command = normalize_command(command)
     if not isinstance(normalized_command, dict):
@@ -193,7 +198,7 @@ def dispatch_command(doc, command, levels=None):
 
 
 def normalize_command(command):
-    """将模型输出的命令规范化为项目内部格式。"""
+    """Normalize a model-output command into the project's internal format."""
     if not isinstance(command, dict):
         raise ValueError("命令必须为 JSON 对象")
 
@@ -225,7 +230,7 @@ def normalize_command(command):
 
 
 def resolve_ai_timeout_ms(user_input):
-    """根据用户输入推断本轮 AI 请求超时配置。"""
+    """Infer the AI request timeout for this turn based on user input."""
     text = to_text(user_input)
     if _looks_like_generate_frame_request(text):
         return FRAME_API_TIMEOUT_MS
@@ -477,7 +482,7 @@ def _normalize_section_param_value(value):
 
 
 # ============================================================
-# 各 action 的执行函数
+# Execution functions for each action
 # ============================================================
 
 def _exec_create_column(doc, params, levels):
