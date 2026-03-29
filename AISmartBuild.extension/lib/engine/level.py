@@ -63,7 +63,7 @@ def create_level_system(doc, num_floors, floor_height_mm,
     # Create levels
     level_names = ["F{}".format(i) for i in range(len(elevations))]
     level_names[0] = "\u00b10.000"   # +-0.000 base level
-    level_names[-1] = "屋面"          # Top level is the roof
+    level_names[-1] = u"屋面"          # Top level is the roof
 
     for i, (name, elev) in enumerate(zip(level_names, elevations)):
         level = create_level(doc, name, elev)

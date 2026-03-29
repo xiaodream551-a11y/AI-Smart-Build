@@ -20,11 +20,11 @@ def create_column(doc, x_mm, y_mm, base_level, top_level, section="500x500"):
     """
     parse_section(section)
     if base_level is None:
-        raise ValueError("柱底标高不能为空")
+        raise ValueError(u"柱底标高不能为空")
     if top_level is None:
-        raise ValueError("柱顶标高不能为空")
+        raise ValueError(u"柱顶标高不能为空")
     if base_level.Elevation >= top_level.Elevation:
-        raise ValueError("柱底标高必须低于柱顶标高")
+        raise ValueError(u"柱底标高必须低于柱顶标高")
 
     col_type = get_or_create_column_type(doc, section)
     if not col_type.IsActive:

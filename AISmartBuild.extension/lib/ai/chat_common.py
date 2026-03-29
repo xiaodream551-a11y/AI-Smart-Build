@@ -44,7 +44,7 @@ def execute_command(doc, command, levels):
     action = command.get("action", "unknown")
 
     if _should_use_transaction(action):
-        with revit.Transaction("AI智建：" + action):
+        with revit.Transaction(u"AI智建：" + action):
             result = dispatch_command(doc, command, levels)
         return result, get_all_levels(doc)
 
@@ -55,5 +55,5 @@ def execute_command(doc, command, levels):
 def print_system_message(output, message):
     if output is None:
         return
-    output.print_md("**系统：** " + message)
+    output.print_md(u"**系统：** " + message)
     output.print_md("---")

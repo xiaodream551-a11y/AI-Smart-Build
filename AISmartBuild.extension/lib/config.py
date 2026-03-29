@@ -112,9 +112,9 @@ MAX_CONVERSATION_TURNS = _read_int_config(
 # Revit default parameters
 # ============================================================
 # Family names (Chinese Revit 2024 template)
-COLUMN_FAMILY_NAME = "混凝土-矩形-柱"
-BEAM_FAMILY_NAME = "混凝土-矩形梁"
-FLOOR_TYPE_NAME = "常规 - 150mm"
+COLUMN_FAMILY_NAME = u"混凝土-矩形-柱"
+BEAM_FAMILY_NAME = u"混凝土-矩形梁"
+FLOOR_TYPE_NAME = u"常规 - 150mm"
 
 # Alternative family names (English template)
 COLUMN_FAMILY_NAME_EN = "Concrete-Rectangular-Column"

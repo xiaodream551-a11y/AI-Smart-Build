@@ -98,7 +98,7 @@ class DeepSeekClient(object):
                 response_text = self._http_post(payload, timeout_ms=timeout_ms)
         except Exception as err:
             self._rollback_last_user_message(user_message)
-            raise Exception("API 请求失败 [{}]: {}".format(
+            raise Exception(u"API 请求失败 [{}]: {}".format(
                 type(err).__name__,
                 self._extract_web_exception_message(err),
             ))
@@ -109,7 +109,7 @@ class DeepSeekClient(object):
         except (ValueError, TypeError):
             self._rollback_last_user_message(user_message)
             snippet = (response_text or "")[:300].strip()
-            raise Exception("API 返回不是合法 JSON\n--- 原始返回(前300字) ---\n{}".format(snippet))
+            raise Exception(u"API 返回不是合法 JSON\n--- 原始返回(前300字) ---\n{}".format(snippet))
 
         error_message = self._extract_error_message(result)
         if error_message:
@@ -122,7 +122,7 @@ class DeepSeekClient(object):
         except (KeyError, IndexError):
             self._rollback_last_user_message(user_message)
             snippet = (response_text or "")[:300].strip()
-            raise Exception("API 返回格式异常\n--- 原始返回(前300字) ---\n{}".format(snippet))
+            raise Exception(u"API 返回格式异常\n--- 原始返回(前300字) ---\n{}".format(snippet))
 
         self.conversation.append({"role": "assistant", "content": reply})
         self._trim_conversation_history()
@@ -144,7 +144,7 @@ class DeepSeekClient(object):
     def _http_post(self, payload, timeout_ms=None):
         """Send a POST request via .NET HttpWebRequest with automatic retry on retryable errors."""
         if HttpWebRequest is None or Encoding is None:
-            raise RuntimeError("当前环境不支持 .NET HTTP 请求")
+            raise RuntimeError(u"当前环境不支持 .NET HTTP 请求")
 
         normalized_retry_count = self._normalize_retry_count(API_RETRY_COUNT)
         normalized_timeout_ms = self._normalize_timeout_ms(timeout_ms)
@@ -211,7 +211,7 @@ class DeepSeekClient(object):
 
     def _wait_before_retry(self, retry_number):
         retry_backoff = self._normalize_retry_backoff(API_RETRY_BACKOFF)
-        print("正在重试第 {} 次...".format(retry_number))
+        print(u"正在重试第 {} 次...".format(retry_number))
         time.sleep(retry_backoff ** retry_number)
 
     def _should_retry_request_error(self, error):
@@ -353,7 +353,7 @@ class DeepSeekClient(object):
         if isinstance(error, dict):
             message = error.get("message")
             if message:
-                return "API 返回错误: {}".format(message)
+                return u"API 返回错误: {}".format(message)
         return None
 
     def _extract_web_exception_message(self, error):

@@ -139,7 +139,7 @@ def _build_entry_from_turn(round_index, turn):
 
 def extract_command_entries_from_conversation_markdown(content):
     sections = re.findall(
-        r"## 第 (\d+) 轮 \[(.*?)\](.*?)(?=\n## 第 \d+ 轮 \[|\Z)",
+        u"## 第 (\\d+) 轮 \\[(.*?)\\](.*?)(?=\\n## 第 \\d+ 轮 \\[|\\Z)",
         content or "",
         re.DOTALL
     )
@@ -147,7 +147,7 @@ def extract_command_entries_from_conversation_markdown(content):
 
     if not sections:
         matches = re.findall(
-            r"### 归一化指令\s*```json\s*(.*?)\s*```",
+            u"### 归一化指令\\s*```json\\s*(.*?)\\s*```",
             content or "",
             re.DOTALL
         )
@@ -170,7 +170,7 @@ def extract_command_entries_from_conversation_markdown(content):
 
     for round_index, _timestamp, body in sections:
         command_match = re.search(
-            r"### 归一化指令\s*```json\s*(.*?)\s*```",
+            u"### 归一化指令\\s*```json\\s*(.*?)\\s*```",
             body,
             re.DOTALL
         )
@@ -182,28 +182,28 @@ def extract_command_entries_from_conversation_markdown(content):
         except Exception:
             continue
 
-        action_match = re.search(r"- 动作：`([^`]+)`", body)
-        source_match = re.search(r"- 来源：([^\n]+)", body)
-        status_match = re.search(r"- 状态：([^\n]+)", body)
+        action_match = re.search(u"- 动作：`([^`]+)`", body)
+        source_match = re.search(u"- 来源：([^\\n]+)", body)
+        status_match = re.search(u"- 状态：([^\\n]+)", body)
         user_input_match = re.search(
-            r"### 用户输入\s*```text\s*(.*?)\s*```",
+            u"### 用户输入\\s*```text\\s*(.*?)\\s*```",
             body,
             re.DOTALL
         )
         error_match = re.search(
-            r"### 错误\s*```text\s*(.*?)\s*```",
+            u"### 错误\\s*```text\\s*(.*?)\\s*```",
             body,
             re.DOTALL
         )
         recovery_match = re.search(
-            r"### 恢复建议\s*```text\s*(.*?)\s*```",
+            u"### 恢复建议\\s*```text\\s*(.*?)\\s*```",
             body,
             re.DOTALL
         )
-        failed_filter_source_match = re.search(r"- 失败筛选来源：`([^`]+)`", body)
-        failed_filter_action_match = re.search(r"- 失败筛选动作：`([^`]+)`", body)
-        failed_filter_keyword_match = re.search(r"- 失败筛选关键字：`([^`]+)`", body)
-        failed_selected_round_index_match = re.search(r"- 失败筛选当前轮次：`([^`]+)`", body)
+        failed_filter_source_match = re.search(u"- 失败筛选来源：`([^`]+)`", body)
+        failed_filter_action_match = re.search(u"- 失败筛选动作：`([^`]+)`", body)
+        failed_filter_keyword_match = re.search(u"- 失败筛选关键字：`([^`]+)`", body)
+        failed_selected_round_index_match = re.search(u"- 失败筛选当前轮次：`([^`]+)`", body)
         status = normalize_status_label(
             status_match.group(1).strip() if status_match else ""
         )

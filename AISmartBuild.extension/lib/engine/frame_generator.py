@@ -46,22 +46,22 @@ def generate_frame(doc, params, progress_callback=None):
     beam_section_y = params.get("beam_section_y", beam_section_x)
 
     if not x_spans:
-        raise ValueError("X 向跨距不能为空")
+        raise ValueError(u"X 向跨距不能为空")
     if not y_spans:
-        raise ValueError("Y 向跨距不能为空")
+        raise ValueError(u"Y 向跨距不能为空")
     if any(span <= 0 for span in x_spans):
-        raise ValueError("X 向跨距必须全部大于 0")
+        raise ValueError(u"X 向跨距必须全部大于 0")
     if any(span <= 0 for span in y_spans):
-        raise ValueError("Y 向跨距必须全部大于 0")
+        raise ValueError(u"Y 向跨距必须全部大于 0")
     if num_floors <= 0:
-        raise ValueError("层数必须大于 0")
+        raise ValueError(u"层数必须大于 0")
     if floor_height <= 0:
-        raise ValueError("标准层高必须大于 0")
+        raise ValueError(u"标准层高必须大于 0")
     if first_floor_height <= 0:
-        raise ValueError("首层层高必须大于 0")
-    _validate_section(col_section, "柱截面")
-    _validate_section(beam_section_x, "X 向梁截面")
-    _validate_section(beam_section_y, "Y 向梁截面")
+        raise ValueError(u"首层层高必须大于 0")
+    _validate_section(col_section, u"柱截面")
+    _validate_section(beam_section_x, u"X 向梁截面")
+    _validate_section(beam_section_y, u"Y 向梁截面")
 
     # ---------- Calculate grid coordinates ----------
     x_coords = [0]
@@ -78,12 +78,12 @@ def generate_frame(doc, params, progress_callback=None):
     }
 
     # ---------- 1. Create grids ----------
-    log("正在创建轴网...")
+    log(u"正在创建轴网...")
     x_grids, y_grids = create_grid_system(doc, x_coords, y_coords)
     stats["grids"] = len(x_grids) + len(y_grids)
 
     # ---------- 2. Create levels ----------
-    log("正在创建标高...")
+    log(u"正在创建标高...")
     levels = create_level_system(
         doc, num_floors, floor_height, first_floor_height
     )
@@ -96,7 +96,7 @@ def generate_frame(doc, params, progress_callback=None):
         floor_num = floor_idx + 1
 
         # 3a. Columns (from base level to top level)
-        log("正在生成第 {} 层柱...".format(floor_num))
+        log(u"正在生成第 {} 层柱...".format(floor_num))
         cols = create_columns_on_grid(
             doc, x_coords, y_coords,
             base_level, top_level, col_section
@@ -104,7 +104,7 @@ def generate_frame(doc, params, progress_callback=None):
         stats["columns"] += len(cols)
 
         # 3b. Beams (placed at top level)
-        log("正在生成第 {} 层梁...".format(floor_num))
+        log(u"正在生成第 {} 层梁...".format(floor_num))
         bms = create_beams_on_grid(
             doc, x_coords, y_coords,
             top_level, beam_section_x, beam_section_y
@@ -112,23 +112,23 @@ def generate_frame(doc, params, progress_callback=None):
         stats["beams"] += len(bms)
 
         # 3c. Floor slabs (placed at top level)
-        log("正在生成第 {} 层板...".format(floor_num))
+        log(u"正在生成第 {} 层板...".format(floor_num))
         slab = create_floors_on_grid(doc, x_coords, y_coords, top_level)
         stats["floors"] += 1
 
-    log("框架生成完成！")
+    log(u"框架生成完成！")
     return stats
 
 
 def format_stats(stats):
     """Format statistics into a Chinese summary string."""
     return (
-        "生成完成：\n"
-        "  轴线 {grids} 根\n"
-        "  标高 {levels} 个\n"
-        "  柱   {columns} 根\n"
-        "  梁   {beams} 根\n"
-        "  板   {floors} 块"
+        u"生成完成：\n"
+        u"  轴线 {grids} 根\n"
+        u"  标高 {levels} 个\n"
+        u"  柱   {columns} 根\n"
+        u"  梁   {beams} 根\n"
+        u"  板   {floors} 块"
     ).format(**stats)
 
 
@@ -136,4 +136,4 @@ def _validate_section(section_text, label):
     try:
         parse_section(section_text)
     except ValueError as err:
-        raise ValueError("{}无效：{}".format(label, err))
+        raise ValueError(u"{}无效：{}".format(label, err))

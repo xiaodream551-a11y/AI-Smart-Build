@@ -24,22 +24,22 @@ except NameError:
 _CATEGORY_MAP = {
     "column": DB.BuiltInCategory.OST_StructuralColumns,
     "columns": DB.BuiltInCategory.OST_StructuralColumns,
-    "柱": DB.BuiltInCategory.OST_StructuralColumns,
+    u"柱": DB.BuiltInCategory.OST_StructuralColumns,
     "beam": DB.BuiltInCategory.OST_StructuralFraming,
     "beams": DB.BuiltInCategory.OST_StructuralFraming,
-    "梁": DB.BuiltInCategory.OST_StructuralFraming,
+    u"梁": DB.BuiltInCategory.OST_StructuralFraming,
     "slab": DB.BuiltInCategory.OST_Floors,
     "slabs": DB.BuiltInCategory.OST_Floors,
     "floor": DB.BuiltInCategory.OST_Floors,
     "floors": DB.BuiltInCategory.OST_Floors,
-    "板": DB.BuiltInCategory.OST_Floors,
-    "楼板": DB.BuiltInCategory.OST_Floors,
+    u"板": DB.BuiltInCategory.OST_Floors,
+    u"楼板": DB.BuiltInCategory.OST_Floors,
 }
 
 _CATEGORY_INFO = {
-    DB.BuiltInCategory.OST_StructuralColumns: ("柱", "根"),
-    DB.BuiltInCategory.OST_StructuralFraming: ("梁", "根"),
-    DB.BuiltInCategory.OST_Floors: ("楼板", "块"),
+    DB.BuiltInCategory.OST_StructuralColumns: (u"柱", u"根"),
+    DB.BuiltInCategory.OST_StructuralFraming: (u"梁", u"根"),
+    DB.BuiltInCategory.OST_Floors: (u"楼板", u"块"),
 }
 
 
@@ -56,12 +56,12 @@ def modify_element(doc, element_id, new_section=None, new_level=None):
         str: Chinese result message
     """
     if not new_section and new_level is None:
-        return "未提供可修改内容"
+        return u"未提供可修改内容"
 
     try:
         element = _get_element(doc, element_id)
         if not element:
-            return "未找到 ID 为 {} 的构件".format(_format_id_value(element_id))
+            return u"未找到 ID 为 {} 的构件".format(_format_id_value(element_id))
 
         result_parts = []
         error_parts = []
@@ -69,33 +69,33 @@ def modify_element(doc, element_id, new_section=None, new_level=None):
         if new_section:
             try:
                 section_text = _change_element_section(doc, element, new_section)
-                result_parts.append("截面为 {}".format(section_text))
+                result_parts.append(u"截面为 {}".format(section_text))
             except Exception as err:
-                error_parts.append("截面修改失败: {}".format(err))
+                error_parts.append(u"截面修改失败: {}".format(err))
 
         if new_level is not None:
             try:
                 target_level = _change_element_level(doc, element, new_level)
-                result_parts.append("标高为 {}".format(target_level.Name))
+                result_parts.append(u"标高为 {}".format(target_level.Name))
             except Exception as err:
-                error_parts.append("标高修改失败: {}".format(err))
+                error_parts.append(u"标高修改失败: {}".format(err))
 
         label = _get_element_label(element)
         elem_id = element.Id.IntegerValue
 
         if result_parts and not error_parts:
-            return "已修改{}(ID: {})，{}".format(
-                label, elem_id, "，".join(result_parts)
+            return u"已修改{}(ID: {})，{}".format(
+                label, elem_id, u"，".join(result_parts)
             )
         if result_parts and error_parts:
-            return "已部分修改{}(ID: {})，{}；{}".format(
-                label, elem_id, "，".join(result_parts), "；".join(error_parts)
+            return u"已部分修改{}(ID: {})，{}；{}".format(
+                label, elem_id, u"，".join(result_parts), u"；".join(error_parts)
             )
-        return "修改{}(ID: {})失败：{}".format(
-            label, elem_id, "；".join(error_parts)
+        return u"修改{}(ID: {})失败：{}".format(
+            label, elem_id, u"；".join(error_parts)
         )
     except Exception as err:
-        return "修改失败: {}".format(err)
+        return u"修改失败: {}".format(err)
 
 
 def delete_element(doc, element_id):
@@ -111,14 +111,14 @@ def delete_element(doc, element_id):
     try:
         element = _get_element(doc, element_id)
         if not element:
-            return "未找到 ID 为 {} 的构件".format(_format_id_value(element_id))
+            return u"未找到 ID 为 {} 的构件".format(_format_id_value(element_id))
 
         label = _get_element_label(element)
         elem_id = element.Id.IntegerValue
         doc.Delete(element.Id)
-        return "已删除{}(ID: {})".format(label, elem_id)
+        return u"已删除{}(ID: {})".format(label, elem_id)
     except Exception as err:
-        return "删除失败: {}".format(err)
+        return u"删除失败: {}".format(err)
 
 
 def batch_modify_by_filter(doc, category, floor_level, old_section, new_section):
@@ -143,11 +143,11 @@ def batch_modify_by_filter(doc, category, floor_level, old_section, new_section)
             DB.BuiltInCategory.OST_StructuralColumns,
             DB.BuiltInCategory.OST_StructuralFraming,
         ):
-            return "{}不支持批量截面修改".format(_get_category_label(cat, category))
+            return u"{}不支持批量截面修改".format(_get_category_label(cat, category))
 
         level = _resolve_filter_level(doc, cat, floor_level)
         if not level:
-            return "未找到标高: {}".format(floor_level)
+            return u"未找到标高: {}".format(floor_level)
 
         collector = DB.FilteredElementCollector(doc) \
             .OfCategory(cat) \
@@ -162,7 +162,7 @@ def batch_modify_by_filter(doc, category, floor_level, old_section, new_section)
             elements.append(element)
 
         if not elements:
-            return "未找到符合条件的{}（标高：{}，截面：{}）".format(
+            return u"未找到符合条件的{}（标高：{}，截面：{}）".format(
                 _get_category_label(cat), level.Name, old_section_text
             )
 
@@ -176,20 +176,20 @@ def batch_modify_by_filter(doc, category, floor_level, old_section, new_section)
                 failed += 1
 
         if success == 0 and failed:
-            return "未成功修改任何{}，目标截面：{}，失败 {} 个".format(
+            return u"未成功修改任何{}，目标截面：{}，失败 {} 个".format(
                 _get_category_label(cat), new_section_text, failed
             )
 
-        result = "已修改 {} 截面为 {}".format(
+        result = u"已修改 {} 截面为 {}".format(
             _format_count(cat, success), new_section_text
         )
         if floor_level is not None:
-            result += "，标高：{}".format(level.Name)
+            result += u"，标高：{}".format(level.Name)
         if failed:
-            result += "，失败 {} 个".format(failed)
+            result += u"，失败 {} 个".format(failed)
         return result
     except Exception as err:
-        return "批量修改失败: {}".format(err)
+        return u"批量修改失败: {}".format(err)
 
 
 def batch_delete_by_filter(doc, category, floor_level=None):
@@ -213,7 +213,7 @@ def batch_delete_by_filter(doc, category, floor_level=None):
         if floor_level is not None:
             level = _resolve_filter_level(doc, cat, floor_level)
             if not level:
-                return "未找到标高: {}".format(floor_level)
+                return u"未找到标高: {}".format(floor_level)
 
         element_ids = []
         for element in collector:
@@ -223,10 +223,10 @@ def batch_delete_by_filter(doc, category, floor_level=None):
 
         if not element_ids:
             if level:
-                return "未找到可删除的{}（标高：{}）".format(
+                return u"未找到可删除的{}（标高：{}）".format(
                     _get_category_label(cat), level.Name
                 )
-            return "未找到可删除的{}".format(_get_category_label(cat))
+            return u"未找到可删除的{}".format(_get_category_label(cat))
 
         success = 0
         failed = 0
@@ -238,18 +238,18 @@ def batch_delete_by_filter(doc, category, floor_level=None):
                 failed += 1
 
         if success == 0 and failed:
-            return "未成功删除任何{}，失败 {} 个".format(
+            return u"未成功删除任何{}，失败 {} 个".format(
                 _get_category_label(cat), failed
             )
 
-        result = "已删除 {}".format(_format_count(cat, success))
+        result = u"已删除 {}".format(_format_count(cat, success))
         if level:
-            result += "，标高：{}".format(level.Name)
+            result += u"，标高：{}".format(level.Name)
         if failed:
-            result += "，失败 {} 个".format(failed)
+            result += u"，失败 {} 个".format(failed)
         return result
     except Exception as err:
-        return "批量删除失败: {}".format(err)
+        return u"批量删除失败: {}".format(err)
 
 
 def _change_element_section(doc, element, new_section):
@@ -263,7 +263,7 @@ def _change_element_section(doc, element, new_section):
         from utils import get_or_create_beam_type
         target_type = get_or_create_beam_type(doc, section_text)
     else:
-        raise ValueError("{}不支持截面修改".format(_get_element_label(element)))
+        raise ValueError(u"{}不支持截面修改".format(_get_element_label(element)))
 
     if hasattr(element, "Symbol") and element.Symbol \
             and element.Symbol.Id.IntegerValue == target_type.Id.IntegerValue:
@@ -280,7 +280,7 @@ def _change_element_section(doc, element, new_section):
 def _change_element_level(doc, element, new_level):
     level = _resolve_level(doc, new_level)
     if not level:
-        raise ValueError("未找到目标标高: {}".format(new_level))
+        raise ValueError(u"未找到目标标高: {}".format(new_level))
 
     cat = _get_element_category(element)
     if cat == DB.BuiltInCategory.OST_StructuralColumns:
@@ -308,7 +308,7 @@ def _change_element_level(doc, element, new_level):
             [DB.BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM]
         )
     else:
-        raise ValueError("{}不支持标高修改".format(_get_element_label(element)))
+        raise ValueError(u"{}不支持标高修改".format(_get_element_label(element)))
 
     return level
 
@@ -378,7 +378,7 @@ def _set_element_level_param(element, builtins, level_id):
             continue
         param.Set(level_id)
         return
-    raise ValueError("{}缺少可写的标高参数".format(_get_element_label(element)))
+    raise ValueError(u"{}缺少可写的标高参数".format(_get_element_label(element)))
 
 
 def _reset_offsets(element, builtins):
@@ -415,8 +415,8 @@ def _get_element_section(element):
         if parsed:
             return parsed
 
-    width_mm = _get_type_dimension_mm(elem_type, ["b", "B", "Width", "宽度"])
-    height_mm = _get_type_dimension_mm(elem_type, ["h", "H", "Depth", "Height", "高度"])
+    width_mm = _get_type_dimension_mm(elem_type, ["b", "B", "Width", u"宽度"])
+    height_mm = _get_type_dimension_mm(elem_type, ["h", "H", "Depth", "Height", u"高度"])
     if width_mm is None or height_mm is None:
         return None
 
@@ -454,7 +454,7 @@ def _to_element_id(value):
         text = value.strip()
         if text and text.lstrip("-").isdigit():
             return DB.ElementId(int(text))
-    raise ValueError("无效构件 ID: {}".format(value))
+    raise ValueError(u"无效构件 ID: {}".format(value))
 
 
 def _resolve_category(category):
@@ -475,7 +475,7 @@ def _resolve_category(category):
         if hasattr(DB.BuiltInCategory, text):
             return getattr(DB.BuiltInCategory, text)
 
-    raise ValueError("不支持的构件类别: {}".format(category))
+    raise ValueError(u"不支持的构件类别: {}".format(category))
 
 
 def _resolve_level(doc, level_value):
@@ -576,13 +576,13 @@ def _get_category_label(category, fallback=None):
     info = _CATEGORY_INFO.get(category)
     if info:
         return info[0]
-    return fallback if fallback else "构件"
+    return fallback if fallback else u"构件"
 
 
 def _format_count(category, count):
     info = _CATEGORY_INFO.get(category)
     if not info:
-        return "{} 个构件".format(count)
+        return u"{} 个构件".format(count)
     return "{} {}{}".format(count, info[1], info[0])
 
 

@@ -197,7 +197,7 @@ def replay_last_command(
             action=action,
             source_kind="replay",
         )
-        output.print_md("**执行结果：** " + result)
+        output.print_md(u"**执行结果：** " + result)
         output.print_md("---")
         chat_state["last_result"] = result
         chat_state["last_action"] = action
@@ -257,7 +257,7 @@ def replay_last_command_from_log(
             action=action,
             source_kind="replay_log",
         )
-        output.print_md("**执行结果：** " + result)
+        output.print_md(u"**执行结果：** " + result)
         output.print_md("---")
         chat_state["last_result"] = result
         chat_state["last_action"] = action
@@ -332,7 +332,7 @@ def replay_pick_command_from_log(
             action=action,
             source_kind="replay_log",
         )
-        output.print_md("**执行结果：** " + result)
+        output.print_md(u"**执行结果：** " + result)
         output.print_md("---")
         chat_state["last_result"] = result
         chat_state["last_action"] = action
@@ -724,7 +724,7 @@ def _replay_failed_entry(
             failed_filter=failed_filter,
             failed_selected_round_index=selected_round_index,
         )
-        output.print_md("**执行结果：** " + result)
+        output.print_md(u"**执行结果：** " + result)
         output.print_md("---")
         chat_state["last_result"] = result
         chat_state["last_action"] = action

@@ -22,11 +22,11 @@ def create_floor(doc, boundary_points_mm, level, floor_type_name=None):
         Floor object
     """
     if level is None:
-        raise ValueError("楼板标高不能为空")
+        raise ValueError(u"楼板标高不能为空")
     if not boundary_points_mm or len(boundary_points_mm) < 3:
-        raise ValueError("楼板边界至少需要 3 个点")
+        raise ValueError(u"楼板边界至少需要 3 个点")
     if _polygon_area(boundary_points_mm) == 0:
-        raise ValueError("楼板边界不能共线或面积为 0")
+        raise ValueError(u"楼板边界不能共线或面积为 0")
 
     floor_type = get_floor_type(doc, floor_type_name)
 

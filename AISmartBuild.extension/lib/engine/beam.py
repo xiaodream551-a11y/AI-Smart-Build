@@ -19,9 +19,9 @@ def create_beam(doc, start_x_mm, start_y_mm, end_x_mm, end_y_mm,
         FamilyInstance beam instance
     """
     if level is None:
-        raise ValueError("梁所在标高不能为空")
+        raise ValueError(u"梁所在标高不能为空")
     if start_x_mm == end_x_mm and start_y_mm == end_y_mm:
-        raise ValueError("梁的起点和终点不能相同，不能创建零长度梁")
+        raise ValueError(u"梁的起点和终点不能相同，不能创建零长度梁")
     parse_section(section)
 
     beam_type = get_or_create_beam_type(doc, section)

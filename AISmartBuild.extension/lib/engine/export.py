@@ -78,7 +78,7 @@ def export_to_excel(data, filepath):
     default_sheet = workbook.active
     workbook.remove(default_sheet)
 
-    _append_sheet(workbook, "柱", ["ID", "X(mm)", "Y(mm)", "底标高", "顶标高", "截面"], [
+    _append_sheet(workbook, u"柱", [u"ID", u"X(mm)", u"Y(mm)", u"底标高", u"顶标高", u"截面"], [
         [
             item["id"],
             item["x_mm"],
@@ -89,7 +89,7 @@ def export_to_excel(data, filepath):
         ]
         for item in data.get("columns", [])
     ])
-    _append_sheet(workbook, "梁", ["ID", "起点X", "起点Y", "终点X", "终点Y", "标高", "截面"], [
+    _append_sheet(workbook, u"梁", [u"ID", u"起点X", u"起点Y", u"终点X", u"终点Y", u"标高", u"截面"], [
         [
             item["id"],
             item["start_x_mm"],
@@ -101,7 +101,7 @@ def export_to_excel(data, filepath):
         ]
         for item in data.get("beams", [])
     ])
-    _append_sheet(workbook, "板", ["ID", "标高", "面积(m²)"], [
+    _append_sheet(workbook, u"板", [u"ID", u"标高", u"面积(m²)"], [
         [
             item["id"],
             item["level"],
@@ -109,10 +109,10 @@ def export_to_excel(data, filepath):
         ]
         for item in data.get("slabs", [])
     ])
-    _append_sheet(workbook, "汇总", ["项目", "数量"], [
-        ["柱", data.get("summary", {}).get("columns", 0)],
-        ["梁", data.get("summary", {}).get("beams", 0)],
-        ["板", data.get("summary", {}).get("slabs", 0)],
+    _append_sheet(workbook, u"汇总", [u"项目", u"数量"], [
+        [u"柱", data.get("summary", {}).get("columns", 0)],
+        [u"梁", data.get("summary", {}).get("beams", 0)],
+        [u"板", data.get("summary", {}).get("slabs", 0)],
     ])
 
     workbook.save(filepath)

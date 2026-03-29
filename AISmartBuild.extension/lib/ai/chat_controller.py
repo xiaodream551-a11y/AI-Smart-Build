@@ -31,15 +31,15 @@ HELP_EXAMPLES = [
 
 
 def print_help(output):
-    output.print_md("### 可用快捷命令")
-    output.print_md("- 输入 `q` 退出对话")
-    output.print_md("- 输入 `/reset` 重置当前对话上下文")
-    output.print_md("- 输入 `/retry` 重试上一条自然语言输入")
-    output.print_md("- 输入 `/replay` 直接重放上一条归一化指令")
-    output.print_md("- 输入 `/replaylog` 从最近一次会话文件重放上一条归一化指令")
-    output.print_md("- 输入 `/replayfail` 从最近一次会话文件筛选失败记录并重放，支持来源筛选、动作筛选和上一条/下一条导航")
-    output.print_md("- 输入 `/help` 查看示例指令")
-    output.print_md("### 示例")
+    output.print_md(u"### 可用快捷命令")
+    output.print_md(u"- 输入 `q` 退出对话")
+    output.print_md(u"- 输入 `/reset` 重置当前对话上下文")
+    output.print_md(u"- 输入 `/retry` 重试上一条自然语言输入")
+    output.print_md(u"- 输入 `/replay` 直接重放上一条归一化指令")
+    output.print_md(u"- 输入 `/replaylog` 从最近一次会话文件重放上一条归一化指令")
+    output.print_md(u"- 输入 `/replayfail` 从最近一次会话文件筛选失败记录并重放，支持来源筛选、动作筛选和上一条/下一条导航")
+    output.print_md(u"- 输入 `/help` 查看示例指令")
+    output.print_md(u"### 示例")
     for example in HELP_EXAMPLES:
         output.print_md("- `{}`".format(example))
     output.print_md("---")
@@ -98,13 +98,13 @@ def handle_local_command(
         print_help(output)
         return True, levels
 
-    if text in ("/reset", "reset", "清空对话", "重置对话"):
+    if text in ("/reset", "reset", u"清空对话", u"重置对话"):
         client.reset()
         reset_chat_state(chat_state)
         print_system_message(output, u"已重置对话上下文。")
         return True, levels
 
-    if text in ("/retry", "retry", "重试上一条"):
+    if text in ("/retry", "retry", u"重试上一条"):
         return True, retry_last_input(
             doc,
             output,
@@ -115,7 +115,7 @@ def handle_local_command(
             chat_state,
         )
 
-    if text in ("/replay", "replay", "重放上一条"):
+    if text in ("/replay", "replay", u"重放上一条"):
         return True, replay_last_command(
             doc,
             output,
@@ -125,7 +125,7 @@ def handle_local_command(
             chat_state,
         )
 
-    if text in ("/replaylog", "replaylog", "重放最近会话"):
+    if text in ("/replaylog", "replaylog", u"重放最近会话"):
         return True, replay_last_command_from_log(
             doc,
             output,
@@ -135,7 +135,7 @@ def handle_local_command(
             chat_state,
         )
 
-    if command_text in ("/replayfail", "replayfail", "重放失败记录"):
+    if command_text in ("/replayfail", "replayfail", u"重放失败记录"):
         return True, replay_pick_failed_command_from_log(
             doc,
             output,
@@ -165,7 +165,7 @@ def run_ai_turn(
     display_text = display_input or user_input
     log_user_input = conversation_user_input or user_input
 
-    output.print_md("**你：** " + display_text)
+    output.print_md(u"**你：** " + display_text)
     reply = None
     command = None
     request_duration_ms = None
@@ -176,7 +176,7 @@ def run_ai_turn(
         timeout_ms = resolve_ai_timeout_ms(user_input)
         reply = client.chat(user_input, timeout_ms=timeout_ms)
         request_duration_ms = int(round((time.time() - started_at) * 1000))
-        output.print_md("**AI 解析：** `{}`".format(
+        output.print_md(u"**AI 解析：** `{}`".format(
             shorten_text(reply)
         ))
 
@@ -213,7 +213,7 @@ def run_ai_turn(
             source_kind=_infer_source_kind(log_user_input),
         )
 
-        output.print_md("**执行结果：** " + result)
+        output.print_md(u"**执行结果：** " + result)
         output.print_md("---")
 
         chat_state["last_reply"] = reply

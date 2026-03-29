@@ -55,10 +55,10 @@ def parse_section(section_str):
             height = float(parts[1].strip())
             if width <= 0 or height <= 0:
                 raise ValueError(
-                    "截面尺寸必须为正数，当前值: {}".format(section_str)
+                    u"截面尺寸必须为正数，当前值: {}".format(section_str)
                 )
             return width, height
-    raise ValueError("截面格式错误，应为 '宽x高'，如 '400x500'，当前值: {}".format(section_str))
+    raise ValueError(u"截面格式错误，应为 '宽x高'，如 '400x500'，当前值: {}".format(section_str))
 
 
 # ============================================================
@@ -118,7 +118,7 @@ def get_or_create_column_type(doc, section_str):
         # Fallback: pick any symbol in this category
         template = find_family_symbol(doc, cat)
     if not template:
-        raise Exception("未找到结构柱族，请先加载矩形柱族到项目中")
+        raise Exception(u"未找到结构柱族，请先加载矩形柱族到项目中")
 
     # Duplicate type and modify dimensions
     try:
@@ -150,7 +150,7 @@ def get_or_create_beam_type(doc, section_str):
     if not template:
         template = find_family_symbol(doc, cat)
     if not template:
-        raise Exception("未找到结构梁族，请先加载矩形梁族到项目中")
+        raise Exception(u"未找到结构梁族，请先加载矩形梁族到项目中")
 
     try:
         new_type = template.Duplicate(target_name)
@@ -180,7 +180,7 @@ def get_floor_type(doc, type_name=None):
     # Fallback: return the first available
     for ft in collector:
         return ft
-    raise Exception("未找到楼板类型")
+    raise Exception(u"未找到楼板类型")
 
 
 def find_level_by_name(doc, name):
@@ -328,7 +328,7 @@ def is_column_category(category):
         return True
 
     if isinstance(category, string_types):
-        return category.strip().lower() in ("column", "columns", "柱")
+        return category.strip().lower() in ("column", "columns", u"柱")
 
     return False
 
@@ -360,9 +360,9 @@ def _set_section_params(symbol, width_mm, height_mm):
     h_feet = mm_to_feet(height_mm)
 
     # Common width parameter names
-    width_names = ["b", "B", "Width", "宽度"]
+    width_names = ["b", "B", "Width", u"宽度"]
     # Common height parameter names
-    height_names = ["h", "H", "Depth", "Height", "高度"]
+    height_names = ["h", "H", "Depth", "Height", u"高度"]
 
     for name in width_names:
         p = symbol.LookupParameter(name)

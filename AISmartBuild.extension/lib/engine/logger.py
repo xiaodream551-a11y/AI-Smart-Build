@@ -8,10 +8,10 @@ import os
 
 
 SOURCE_LABELS = {
-    "user": "用户输入",
-    "retry": "重试上一条输入",
-    "replay": "重放上一条指令",
-    "replay_log": "从会话文件重放",
+    "user": u"用户输入",
+    "retry": u"重试上一条输入",
+    "replay": u"重放上一条指令",
+    "replay_log": u"从会话文件重放",
 }
 
 
@@ -19,15 +19,15 @@ class OperationLog(object):
     """Simple operation logger."""
 
     _SUMMARY_GROUPS = [
-        (("create_grid",), "创建", "根轴线"),
-        (("create_level",), "创建", "个标高"),
-        (("create_column",), "创建", "根柱"),
-        (("create_beam",), "创建", "根梁"),
-        (("create_floor", "create_slab"), "创建", "块板"),
-        (("modify_element", "batch_modify_by_filter"), "修改", "次"),
-        (("delete_element", "batch_delete_by_filter"), "删除", "次"),
-        (("query_count", "query_detail", "query_summary"), "查询", "次"),
-        (("skip_row",), "跳过", "行"),
+        (("create_grid",), u"创建", u"根轴线"),
+        (("create_level",), u"创建", u"个标高"),
+        (("create_column",), u"创建", u"根柱"),
+        (("create_beam",), u"创建", u"根梁"),
+        (("create_floor", "create_slab"), u"创建", u"块板"),
+        (("modify_element", "batch_modify_by_filter"), u"修改", u"次"),
+        (("delete_element", "batch_delete_by_filter"), u"删除", u"次"),
+        (("query_count", "query_detail", "query_summary"), u"查询", u"次"),
+        (("skip_row",), u"跳过", u"行"),
     ]
 
     def __init__(self):
@@ -54,7 +54,7 @@ class OperationLog(object):
         if count_value == 0:
             return None
         if count_value < 0:
-            print("警告：OperationLog.log 收到负数 count={}，已按 0 处理并跳过记录。".format(count_value))
+            print(u"警告：OperationLog.log 收到负数 count={}，已按 0 处理并跳过记录。".format(count_value))
             return None
 
         entry = {
@@ -75,7 +75,7 @@ class OperationLog(object):
             str
         """
         if not self.logs:
-            return "本次操作：无"
+            return u"本次操作：无"
 
         parts = []
         used_actions = {}
@@ -96,10 +96,10 @@ class OperationLog(object):
             if action_name in used_actions:
                 continue
             if action_name in self.counts:
-                parts.append("{} {} 次".format(action_name, self.counts[action_name]))
+                parts.append(u"{} {} 次".format(action_name, self.counts[action_name]))
                 used_actions[action_name] = True
 
-        return "本次操作：" + "、".join(parts)
+        return u"本次操作：" + u"、".join(parts)
 
     def get_detail(self):
         """
@@ -140,7 +140,7 @@ class OperationLog(object):
             if detail:
                 log_file.write(detail)
             else:
-                log_file.write("无操作日志")
+                log_file.write(u"无操作日志")
         return filepath
 
     def _to_text(self, value):
@@ -192,55 +192,55 @@ class ConversationLog(object):
         if not self.turns:
             return ""
 
-        sections = ["# AI 对话会话记录", ""]
+        sections = [u"# AI 对话会话记录", ""]
         sections.extend(self._build_summary_lines())
         for index, entry in enumerate(self.turns, start=1):
             sections.append("")
-            sections.append("## 第 {} 轮 [{}]".format(index, entry["timestamp"]))
+            sections.append(u"## 第 {} 轮 [{}]".format(index, entry["timestamp"]))
 
             meta_lines = self._build_turn_meta_lines(entry)
             if meta_lines:
                 sections.append("")
-                sections.append("### 元信息")
+                sections.append(u"### 元信息")
                 sections.extend(meta_lines)
 
             sections.append("")
-            sections.append("### 用户输入")
+            sections.append(u"### 用户输入")
             sections.append("```text")
             sections.append(entry["user_input"] or "")
             sections.append("```")
 
             if entry["reply"]:
                 sections.append("")
-                sections.append("### AI 原始回复")
+                sections.append(u"### AI 原始回复")
                 sections.append("```text")
                 sections.append(entry["reply"])
                 sections.append("```")
 
             if entry["command"] is not None:
                 sections.append("")
-                sections.append("### 归一化指令")
+                sections.append(u"### 归一化指令")
                 sections.append("```json")
                 sections.append(json.dumps(entry["command"], ensure_ascii=False, indent=2))
                 sections.append("```")
 
             if entry["result"]:
                 sections.append("")
-                sections.append("### 执行结果")
+                sections.append(u"### 执行结果")
                 sections.append("```text")
                 sections.append(entry["result"])
                 sections.append("```")
 
             if entry["error"]:
                 sections.append("")
-                sections.append("### 错误")
+                sections.append(u"### 错误")
                 sections.append("```text")
                 sections.append(entry["error"])
                 sections.append("```")
 
             if entry["recovery_suggestion"]:
                 sections.append("")
-                sections.append("### 恢复建议")
+                sections.append(u"### 恢复建议")
                 sections.append("```text")
                 sections.append(entry["recovery_suggestion"])
                 sections.append("```")
@@ -254,7 +254,7 @@ class ConversationLog(object):
             if content:
                 output_file.write(content)
             else:
-                output_file.write("无会话记录")
+                output_file.write(u"无会话记录")
         json_path = os.path.splitext(filepath)[0] + ".json"
         self.save_to_json(json_path)
         return filepath
@@ -381,33 +381,33 @@ class ConversationLog(object):
                 duration_values.append(entry["request_duration_ms"])
 
         lines = [
-            "- 总轮次：{}".format(total),
-            "- 成功：{}，失败：{}".format(success, failed),
+            u"- 总轮次：{}".format(total),
+            u"- 成功：{}，失败：{}".format(success, failed),
         ]
 
         if duration_values:
             avg_duration = int(round(sum(duration_values) / float(len(duration_values))))
-            lines.append("- AI 请求耗时：平均 {} ms，最大 {} ms".format(
+            lines.append(u"- AI 请求耗时：平均 {} ms，最大 {} ms".format(
                 avg_duration,
                 max(duration_values)
             ))
 
         if action_counts:
             ordered = sorted(action_counts.items(), key=lambda item: item[0])
-            action_text = "，".join(
+            action_text = u"，".join(
                 "{} x{}".format(action, count) for action, count in ordered
             )
-            lines.append("- 动作统计：{}".format(action_text))
+            lines.append(u"- 动作统计：{}".format(action_text))
 
         if source_counts:
             ordered = sorted(source_counts.items(), key=lambda item: item[0])
-            source_text = "，".join(
+            source_text = u"，".join(
                 "{} x{}".format(
                     SOURCE_LABELS.get(source_kind, source_kind),
                     count
                 ) for source_kind, count in ordered
             )
-            lines.append("- 来源统计：{}".format(source_text))
+            lines.append(u"- 来源统计：{}".format(source_text))
 
         return lines
 
@@ -415,38 +415,38 @@ class ConversationLog(object):
         lines = []
 
         if entry.get("action"):
-            lines.append("- 动作：`{}`".format(entry["action"]))
+            lines.append(u"- 动作：`{}`".format(entry["action"]))
 
         if entry.get("source_kind"):
-            lines.append("- 来源：{}".format(
+            lines.append(u"- 来源：{}".format(
                 SOURCE_LABELS.get(entry["source_kind"], entry["source_kind"])
             ))
 
         if entry.get("request_duration_ms") is not None:
-            lines.append("- AI 请求耗时：`{} ms`".format(entry["request_duration_ms"]))
+            lines.append(u"- AI 请求耗时：`{} ms`".format(entry["request_duration_ms"]))
 
         failed_filter = entry.get("failed_filter") or {}
         if failed_filter.get("source_filter_kind"):
-            lines.append("- 失败筛选来源：`{}`".format(
+            lines.append(u"- 失败筛选来源：`{}`".format(
                 failed_filter["source_filter_kind"]
             ))
         if failed_filter.get("action"):
-            lines.append("- 失败筛选动作：`{}`".format(
+            lines.append(u"- 失败筛选动作：`{}`".format(
                 failed_filter["action"]
             ))
         if failed_filter.get("keyword"):
-            lines.append("- 失败筛选关键字：`{}`".format(
+            lines.append(u"- 失败筛选关键字：`{}`".format(
                 failed_filter["keyword"]
             ))
         if entry.get("failed_selected_round_index") is not None:
-            lines.append("- 失败筛选当前轮次：`{}`".format(
+            lines.append(u"- 失败筛选当前轮次：`{}`".format(
                 entry["failed_selected_round_index"]
             ))
 
         if entry.get("error"):
-            lines.append("- 状态：失败")
+            lines.append(u"- 状态：失败")
         else:
-            lines.append("- 状态：成功")
+            lines.append(u"- 状态：成功")
 
         return lines
 
@@ -462,7 +462,7 @@ def build_default_output_path(prefix, extension="txt"):
     if not os.path.exists(base_dir):
         os.makedirs(base_dir)
 
-    safe_prefix = "{}".format(prefix or "操作日志").strip() or "操作日志"
+    safe_prefix = "{}".format(prefix or u"操作日志").strip() or u"操作日志"
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     safe_extension = "{}".format(extension or "txt").strip().lstrip(".") or "txt"
     filename = "{}-{}.{}".format(safe_prefix, timestamp, safe_extension)
@@ -474,7 +474,7 @@ def get_default_output_dir():
     return os.path.join(
         os.path.expanduser("~"),
         "Documents",
-        "AI智建日志"
+        u"AI智建日志"
     )
 
 
