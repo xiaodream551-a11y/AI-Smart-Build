@@ -1,0 +1,102 @@
+[
+  {
+    "name": "create_floor_alias",
+    "stories": 3,
+    "reply": "{\"action\":\"create_floor\",\"params\":{\"points\":[[0,0],[6000,0],[6000,6000],[0,6000]],\"level\":2}}",
+    "expected": {
+      "command": {
+        "action": "create_slab",
+        "params": {
+          "floor": 2
+        }
+      },
+      "inspection": {
+        "resolved": {
+          "level": "F2"
+        }
+      }
+    }
+  },
+  {
+    "name": "query_count_chinese_type",
+    "stories": 3,
+    "reply": "{\"action\":\"query_count\",\"params\":{\"element_type\":\"柱子\",\"floor\":1}}",
+    "expected": {
+      "command": {
+        "action": "query_count",
+        "params": {
+          "element_type": "column",
+          "floor": 1
+        }
+      },
+      "inspection": {
+        "resolved": {
+          "level": "±0.000"
+        }
+      }
+    }
+  },
+  {
+    "name": "generate_frame_alias_fields",
+    "stories": 5,
+    "reply": "{\"action\":\"create_frame\",\"params\":{\"x_spans\":[6000,6000,6000],\"y_spans\":[6000,6000],\"floor_count\":5,\"height\":3600,\"beam_section\":\"300x600\"}}",
+    "expected": {
+      "command": {
+        "action": "generate_frame",
+        "params": {
+          "num_floors": 5,
+          "floor_height": 3600,
+          "beam_section_x": "300x600",
+          "beam_section_y": "300x600"
+        }
+      }
+    }
+  },
+  {
+    "name": "modify_section_chinese_type",
+    "stories": 3,
+    "reply": "{\"action\":\"modify_section\",\"params\":{\"type\":\"柱\",\"story\":2,\"from_section\":\"400x400\",\"to_section\":\"500x500\"}}",
+    "expected": {
+      "command": {
+        "action": "modify_section",
+        "params": {
+          "element_type": "column",
+          "floor": 2,
+          "old_section": "400x400",
+          "new_section": "500x500"
+        }
+      },
+      "inspection": {
+        "resolved": {
+          "level": "F1"
+        }
+      }
+    }
+  },
+  {
+    "name": "create_column_default_top_floor",
+    "stories": 3,
+    "reply": "{\"action\":\"创建柱子\",\"params\":{\"x\":12000,\"y\":6000,\"floor\":2,\"section\":\"500x500\"}}",
+    "expected": {
+      "command": {
+        "action": "create_column",
+        "params": {
+          "base_floor": 2,
+          "top_floor": 3
+        }
+      },
+      "inspection": {
+        "resolved": {
+          "base_level": "F1",
+          "top_level": "F2"
+        }
+      }
+    }
+  },
+  {
+    "name": "invalid_json_reply",
+    "stories": 3,
+    "reply": "当然可以，我来帮你建模。",
+    "expected_error": "无法从回复中提取 JSON 指令"
+  }
+]
