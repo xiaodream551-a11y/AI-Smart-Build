@@ -50,23 +50,97 @@ def _get_revit_version_text():
         return u"未知"
 
 
+class AboutWindow(forms.WPFWindow):
+    """About dialog with themed UI."""
+
+    layout = """
+    <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+            Title="AI 智建 — 关于" Width="420" Height="400"
+            WindowStartupLocation="CenterScreen"
+            ResizeMode="NoResize"
+            Background="#F0F0F0">
+        <DockPanel>
+            <Border DockPanel.Dock="Top" Background="#1E3A5F" Padding="24,18">
+                <StackPanel>
+                    <TextBlock Text="AI 智建" FontSize="24" FontWeight="Bold"
+                               Foreground="White"/>
+                    <TextBlock Text="自然语言驱动的 Revit 智能建模系统" FontSize="12"
+                               Foreground="#B0C4DE" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <Border DockPanel.Dock="Bottom" Padding="20,10" Background="#F0F0F0">
+                <Button Content="确 定" FontSize="13" FontWeight="Bold"
+                        Height="36" Foreground="White" Cursor="Hand"
+                        Click="on_close">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" Background="#1E3A5F"
+                                                CornerRadius="6">
+                                            <ContentPresenter HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border"
+                                                        Property="Background" Value="#FF6D00"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Border>
+
+            <Border Margin="20,16" Background="White" CornerRadius="8" Padding="20,16">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="1" Opacity="0.15" BlurRadius="6"/>
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock x:Name="tb_version" FontSize="14" FontWeight="SemiBold"
+                               Foreground="#1E3A5F" Margin="0,0,0,12"/>
+                    <TextBlock x:Name="tb_python" FontSize="12" Foreground="#555" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="tb_pyrevit" FontSize="12" Foreground="#555" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="tb_revit" FontSize="12" Foreground="#555" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="tb_api" FontSize="12" Foreground="#555" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="tb_config" FontSize="12" Foreground="#555"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+        </DockPanel>
+    </Window>
+    """
+
+    def __init__(self, info):
+        forms.WPFWindow.__init__(self, self.layout, literal_string=True)
+        self.tb_version.Text = u"插件版本：v{}".format(info["version"])
+        self.tb_python.Text = u"Python：{}".format(info["python"])
+        self.tb_pyrevit.Text = u"pyRevit：{}".format(info["pyrevit"])
+        self.tb_revit.Text = u"Revit：{}".format(info["revit"])
+        self.tb_api.Text = u"DeepSeek API Key：{}".format(info["api_status"])
+        self.tb_config.Text = u"配置文件：{}".format(info["config_path"])
+
+    def on_close(self, sender, args):
+        self.Close()
+
+
 def main():
-    message = (
-        u"插件版本：v{version}\n"
-        u"Python 版本：{python_version}\n"
-        u"pyRevit 版本：{pyrevit_version}\n"
-        u"Revit 版本：{revit_version}\n"
-        u"DeepSeek API Key：{api_key_status}\n"
-        u"用户配置文件路径：{config_path}"
-    ).format(
-        version=VERSION,
-        python_version=sys.version,
-        pyrevit_version=_get_pyrevit_version_text(),
-        revit_version=_get_revit_version_text(),
-        api_key_status=u"已配置" if DEEPSEEK_API_KEY else u"未配置",
-        config_path=USER_CONFIG_PATH,
-    )
-    forms.alert(message, title=u"AI 智建 — 关于")
+    info = {
+        "version": VERSION,
+        "python": sys.version.split()[0],
+        "pyrevit": _get_pyrevit_version_text(),
+        "revit": _get_revit_version_text(),
+        "api_status": u"已配置" if DEEPSEEK_API_KEY else u"未配置",
+        "config_path": USER_CONFIG_PATH,
+    }
+    window = AboutWindow(info)
+    window.ShowDialog()
 
 
 if __name__ == "__main__":
