@@ -5,9 +5,13 @@ Color scheme:
   PRIMARY (deep blue):  #1E3A5F = RGB(30, 58, 95)
   ACCENT  (orange):     #FF6D00 = RGB(255, 109, 0)
   Background: transparent RGBA
+
+Dark mode variants use lighter colors suited for dark backgrounds.
+4x supersampling: draw at 384x384, downscale to 96x96 with LANCZOS for antialiasing.
 """
 
 import os
+import math
 from PIL import Image, ImageDraw
 
 # ─── Color constants ────────────────────────────────────────────────────────
@@ -15,7 +19,15 @@ PRIMARY = (30, 58, 95, 255)    # deep blue, fully opaque
 ACCENT  = (255, 109, 0, 255)   # orange, fully opaque
 BG      = (0, 0, 0, 0)         # transparent background
 
-SIZE = 96  # icon canvas size in pixels
+# Dark mode variants (lighter colors for dark backgrounds)
+PRIMARY_DARK = (200, 215, 235, 255)   # light blue-gray for dark backgrounds
+ACCENT_DARK  = (255, 140, 40, 255)    # slightly lighter orange for dark mode
+
+SIZE = 96  # final icon size in pixels
+
+# ─── Supersampling constants ─────────────────────────────────────────────────
+RENDER_SCALE = 4
+RENDER_SIZE  = SIZE * RENDER_SCALE  # 384
 
 # ─── Output paths ────────────────────────────────────────────────────────────
 BASE = os.path.join(
@@ -35,209 +47,229 @@ ICONS = {
 }
 
 
-# ─── Helper: new blank canvas ────────────────────────────────────────────────
+# ─── Helper: new blank canvas at render resolution ───────────────────────────
 def new_canvas():
-    img = Image.new("RGBA", (SIZE, SIZE), BG)
+    img = Image.new("RGBA", (RENDER_SIZE, RENDER_SIZE), BG)
     draw = ImageDraw.Draw(img)
     return img, draw
 
 
 # ─── 1. SmartChat — chat bubble + AI sparkle ────────────────────────────────
-def draw_smart_chat():
+def draw_smart_chat(dark=False):
     img, draw = new_canvas()
+    p = PRIMARY_DARK if dark else PRIMARY
+    a = ACCENT_DARK  if dark else ACCENT
+    S = RENDER_SCALE
 
-    # Chat bubble body (rounded rectangle, deep blue)
-    bubble_box = [10, 18, 78, 68]
-    draw.rounded_rectangle(bubble_box, radius=12, fill=PRIMARY)
+    # Chat bubble body (rounded rectangle)
+    bubble_box = [10*S, 18*S, 78*S, 68*S]
+    draw.rounded_rectangle(bubble_box, radius=12*S, fill=p)
 
     # Bubble tail — small triangle at bottom-left
-    tail = [(18, 65), (12, 80), (32, 65)]
-    draw.polygon(tail, fill=PRIMARY)
+    tail = [(18*S, 65*S), (12*S, 80*S), (32*S, 65*S)]
+    draw.polygon(tail, fill=p)
 
-    # Three speech dots inside the bubble (white)
-    DOT = (255, 255, 255, 220)
-    for cx in [26, 44, 62]:
-        draw.ellipse([cx - 4, 39, cx + 4, 47], fill=DOT)
+    # Three speech dots inside the bubble
+    dot_color = (60, 60, 80, 220) if dark else (255, 255, 255, 220)
+    for cx in [26*S, 44*S, 62*S]:
+        draw.ellipse([cx - 4*S, 39*S, cx + 4*S, 47*S], fill=dot_color)
 
-    # Sparkle star (orange) — top-right corner
+    # Sparkle star (accent) — top-right corner
     # Draw a 4-point star via two overlaid polygons
-    cx, cy, r_out, r_in = 72, 24, 13, 5
-    import math
+    scx, scy, r_out, r_in = 72*S, 24*S, 13*S, 5*S
     points = []
     for i in range(8):
         angle = math.radians(i * 45 - 90)
         r = r_out if i % 2 == 0 else r_in
-        points.append((cx + r * math.cos(angle), cy + r * math.sin(angle)))
-    draw.polygon(points, fill=ACCENT)
+        points.append((scx + r * math.cos(angle), scy + r * math.sin(angle)))
+    draw.polygon(points, fill=a)
 
     return img
 
 
 # ─── 2. ExcelImport — spreadsheet grid + upward arrow ───────────────────────
-def draw_excel_import():
+def draw_excel_import(dark=False):
     img, draw = new_canvas()
+    p = PRIMARY_DARK if dark else PRIMARY
+    a = ACCENT_DARK  if dark else ACCENT
+    S = RENDER_SCALE
 
-    # Spreadsheet frame (deep blue outline)
-    frame = [10, 22, 70, 80]
-    draw.rounded_rectangle(frame, radius=4, outline=PRIMARY, width=3, fill=(30, 58, 95, 40))
+    # Spreadsheet frame (outline)
+    frame = [10*S, 22*S, 70*S, 80*S]
+    draw.rounded_rectangle(frame, radius=4*S, outline=p, width=3*S,
+                            fill=(30, 58, 95, 40))
 
     # Horizontal lines inside the grid
-    for y in [38, 52, 66]:
-        draw.line([(12, y), (68, y)], fill=PRIMARY, width=2)
+    for y in [38*S, 52*S, 66*S]:
+        draw.line([(12*S, y), (68*S, y)], fill=p, width=2*S)
 
     # Vertical divider inside the grid
-    draw.line([(35, 24), (35, 78)], fill=PRIMARY, width=2)
+    draw.line([(35*S, 24*S), (35*S, 78*S)], fill=p, width=2*S)
 
-    # Upward arrow (orange) — right side, overlapping the grid
-    ax = 80
+    # Upward arrow (accent) — right side, overlapping the grid
+    ax = 80*S
     # Arrow shaft
-    draw.line([(ax, 72), (ax, 36)], fill=ACCENT, width=4)
+    draw.line([(ax, 72*S), (ax, 36*S)], fill=a, width=4*S)
     # Arrowhead
-    draw.polygon([(ax - 9, 42), (ax, 22), (ax + 9, 42)], fill=ACCENT)
+    draw.polygon([(ax - 9*S, 42*S), (ax, 22*S), (ax + 9*S, 42*S)], fill=a)
 
     return img
 
 
 # ─── 3. GenerateFrame — 3D cube + lightning bolt ────────────────────────────
-def draw_generate_frame():
+def draw_generate_frame(dark=False):
     img, draw = new_canvas()
+    p = PRIMARY_DARK if dark else PRIMARY
+    a = ACCENT_DARK  if dark else ACCENT
+    S = RENDER_SCALE
 
-    # 3D box — isometric-style: front face, top face, right face
-    # Front face (filled deep blue)
-    front = [(16, 46), (16, 80), (56, 80), (56, 46)]
-    draw.polygon(front, fill=PRIMARY)
+    # Front face
+    pr, pg, pb, _ = p
+    front = [(16*S, 46*S), (16*S, 80*S), (56*S, 80*S), (56*S, 46*S)]
+    draw.polygon(front, fill=p)
 
-    # Top face (lighter blue tint via alpha)
-    top = [(16, 46), (36, 28), (76, 28), (56, 46)]
-    draw.polygon(top, fill=(30, 58, 95, 200))
+    # Top face (lighter alpha)
+    top = [(16*S, 46*S), (36*S, 28*S), (76*S, 28*S), (56*S, 46*S)]
+    draw.polygon(top, fill=(pr, pg, pb, 200))
 
     # Right face (even lighter)
-    right = [(56, 46), (76, 28), (76, 62), (56, 80)]
-    draw.polygon(right, fill=(30, 58, 95, 140))
+    right = [(56*S, 46*S), (76*S, 28*S), (76*S, 62*S), (56*S, 80*S)]
+    draw.polygon(right, fill=(pr, pg, pb, 140))
 
     # Outline edges for crispness
     for seg in [
-        [(16, 46), (16, 80)], [(16, 80), (56, 80)], [(56, 80), (56, 46)],
-        [(56, 46), (76, 28)], [(76, 28), (76, 62)], [(76, 62), (56, 80)],
-        [(16, 46), (36, 28)], [(36, 28), (76, 28)], [(56, 46), (36, 28)],
+        [(16*S, 46*S), (16*S, 80*S)], [(16*S, 80*S), (56*S, 80*S)], [(56*S, 80*S), (56*S, 46*S)],
+        [(56*S, 46*S), (76*S, 28*S)], [(76*S, 28*S), (76*S, 62*S)], [(76*S, 62*S), (56*S, 80*S)],
+        [(16*S, 46*S), (36*S, 28*S)], [(36*S, 28*S), (76*S, 28*S)], [(56*S, 46*S), (36*S, 28*S)],
     ]:
-        draw.line(seg, fill=PRIMARY, width=2)
+        draw.line(seg, fill=p, width=2*S)
 
-    # Lightning bolt (orange) — centered on front face
+    # Lightning bolt (accent) — centered on front face
     bolt = [
-        (38, 48), (30, 62), (37, 62), (34, 78), (48, 60), (40, 60), (46, 48)
+        (38*S, 48*S), (30*S, 62*S), (37*S, 62*S), (34*S, 78*S),
+        (48*S, 60*S), (40*S, 60*S), (46*S, 48*S)
     ]
-    draw.polygon(bolt, fill=ACCENT)
+    draw.polygon(bolt, fill=a)
 
     return img
 
 
 # ─── 4. ModifyElement — pencil diagonal + orange tip ────────────────────────
-def draw_modify_element():
+def draw_modify_element(dark=False):
     img, draw = new_canvas()
+    p = PRIMARY_DARK if dark else PRIMARY
+    a = ACCENT_DARK  if dark else ACCENT
+    S = RENDER_SCALE
 
     # Pencil body — a thick parallelogram drawn as polygon
-    # Pencil oriented diagonally (bottom-left to top-right)
-    # Body rectangle
     body = [
-        (20, 72), (26, 78),   # bottom of pencil (eraser end)
-        (72, 26), (66, 20),   # top of pencil (tip direction)
+        (20*S, 72*S), (26*S, 78*S),   # bottom of pencil (eraser end)
+        (72*S, 26*S), (66*S, 20*S),   # top of pencil (tip direction)
     ]
-    draw.polygon(body, fill=PRIMARY)
+    draw.polygon(body, fill=p)
 
-    # Tip triangle (orange) at top-right
-    tip = [(66, 20), (72, 26), (82, 10)]
-    draw.polygon(tip, fill=ACCENT)
+    # Tip triangle (accent) at top-right
+    tip = [(66*S, 20*S), (72*S, 26*S), (82*S, 10*S)]
+    draw.polygon(tip, fill=a)
 
-    # Eraser band (white stripe near bottom)
-    eraser_band = [(20, 72), (26, 78), (30, 74), (24, 68)]
+    # Eraser band (light stripe near bottom)
+    eraser_band = [(20*S, 72*S), (26*S, 78*S), (30*S, 74*S), (24*S, 68*S)]
     draw.polygon(eraser_band, fill=(200, 200, 200, 220))
 
-    # Pencil edge highlight lines
-    draw.line([(20, 72), (72, 26)], fill=(255, 255, 255, 80), width=2)
+    # Pencil edge highlight line — white in light mode, transparent in dark mode
+    highlight_color = (255, 255, 255, 0) if dark else (255, 255, 255, 80)
+    draw.line([(20*S, 72*S), (72*S, 26*S)], fill=highlight_color, width=2*S)
 
-    # Small edit lines below-left of pencil (orange, suggest writing)
-    for i, (x1, y1, x2, y2) in enumerate([
+    # Small edit lines below-left of pencil (accent, suggest writing)
+    for x1, y1, x2, y2 in [
         (8, 80, 28, 80),
         (8, 86, 22, 86),
-    ]):
-        draw.line([(x1, y1), (x2, y2)], fill=ACCENT, width=3)
+    ]:
+        draw.line([(x1*S, y1*S), (x2*S, y2*S)], fill=a, width=3*S)
 
     return img
 
 
 # ─── 5. DeleteElement — trash can + X mark ──────────────────────────────────
-def draw_delete_element():
+def draw_delete_element(dark=False):
     img, draw = new_canvas()
+    p = PRIMARY_DARK if dark else PRIMARY
+    a = ACCENT_DARK  if dark else ACCENT
+    S = RENDER_SCALE
 
-    # Trash can body (rounded rectangle outline, deep blue)
-    body = [22, 36, 74, 84]
-    draw.rounded_rectangle(body, radius=5, outline=PRIMARY, width=3,
-                            fill=(30, 58, 95, 30))
+    # Trash can body (rounded rectangle outline)
+    body_fill = (200, 215, 235, 30) if dark else (30, 58, 95, 30)
+    body = [22*S, 36*S, 74*S, 84*S]
+    draw.rounded_rectangle(body, radius=5*S, outline=p, width=3*S, fill=body_fill)
 
     # Vertical lines inside body (recycle lines)
-    for x in [36, 48, 60]:
-        draw.line([(x, 44), (x, 76)], fill=PRIMARY, width=2)
+    for x in [36*S, 48*S, 60*S]:
+        draw.line([(x, 44*S), (x, 76*S)], fill=p, width=2*S)
 
     # Lid (horizontal bar across top)
-    draw.rounded_rectangle([16, 28, 80, 38], radius=4, fill=PRIMARY)
+    draw.rounded_rectangle([16*S, 28*S, 80*S, 38*S], radius=4*S, fill=p)
 
     # Handle on lid
-    draw.rounded_rectangle([38, 18, 58, 30], radius=4, outline=PRIMARY, width=3)
+    draw.rounded_rectangle([38*S, 18*S, 58*S, 30*S], radius=4*S, outline=p, width=3*S)
 
-    # X mark inside the body (orange)
-    draw.line([(32, 48), (64, 76)], fill=ACCENT, width=4)
-    draw.line([(64, 48), (32, 76)], fill=ACCENT, width=4)
+    # X mark inside the body (accent)
+    draw.line([(32*S, 48*S), (64*S, 76*S)], fill=a, width=4*S)
+    draw.line([(64*S, 48*S), (32*S, 76*S)], fill=a, width=4*S)
 
     return img
 
 
 # ─── 6. ExportModel — document + download arrow ─────────────────────────────
-def draw_export_model():
+def draw_export_model(dark=False):
     img, draw = new_canvas()
+    p = PRIMARY_DARK if dark else PRIMARY
+    a = ACCENT_DARK  if dark else ACCENT
+    S = RENDER_SCALE
 
-    # Document body (rounded rectangle, deep blue fill light)
-    doc = [14, 10, 68, 84]
-    draw.rounded_rectangle(doc, radius=5, outline=PRIMARY, width=3,
+    # Document body (rounded rectangle, light fill)
+    doc = [14*S, 10*S, 68*S, 84*S]
+    draw.rounded_rectangle(doc, radius=5*S, outline=p, width=3*S,
                             fill=(30, 58, 95, 40))
 
-    # Folded corner (top-right) — white triangle to simulate fold
-    fold_size = 16
-    fold = [(68 - fold_size, 10), (68, 10 + fold_size), (68 - fold_size, 10 + fold_size)]
+    # Folded corner (top-right) — light triangle to simulate fold
+    fold_size = 16*S
+    fold = [(68*S - fold_size, 10*S), (68*S, 10*S + fold_size),
+            (68*S - fold_size, 10*S + fold_size)]
     draw.polygon(fold, fill=(240, 240, 240, 220))
     # fold crease line
-    draw.line([(68 - fold_size, 10), (68, 10 + fold_size)], fill=PRIMARY, width=2)
+    draw.line([(68*S - fold_size, 10*S), (68*S, 10*S + fold_size)], fill=p, width=2*S)
 
-    # Horizontal lines on document (text lines, primary)
-    for y in [36, 46, 56]:
-        draw.line([(22, y), (60, y)], fill=PRIMARY, width=2)
+    # Horizontal lines on document (text lines)
+    for y in [36*S, 46*S, 56*S]:
+        draw.line([(22*S, y), (60*S, y)], fill=p, width=2*S)
 
-    # Download arrow (orange) — bottom-right, pointing downward
-    ax, ay = 78, 54
+    # Download arrow (accent) — bottom-right, pointing downward
+    ax, ay = 78*S, 54*S
     # Arrow shaft going down
-    draw.line([(ax, ay - 16), (ax, ay + 4)], fill=ACCENT, width=4)
+    draw.line([(ax, ay - 16*S), (ax, ay + 4*S)], fill=a, width=4*S)
     # Arrowhead pointing down
-    draw.polygon([(ax - 9, ay), (ax, ay + 16), (ax + 9, ay)], fill=ACCENT)
+    draw.polygon([(ax - 9*S, ay), (ax, ay + 16*S), (ax + 9*S, ay)], fill=a)
     # Horizontal base line
-    draw.line([(ax - 12, ay + 18), (ax + 12, ay + 18)], fill=ACCENT, width=3)
+    draw.line([(ax - 12*S, ay + 18*S), (ax + 12*S, ay + 18*S)], fill=a, width=3*S)
 
     return img
 
 
 # ─── 7. About — circle with "i" ─────────────────────────────────────────────
-def draw_about():
+def draw_about(dark=False):
     img, draw = new_canvas()
+    p = PRIMARY_DARK if dark else PRIMARY
+    a = ACCENT_DARK  if dark else ACCENT
+    S = RENDER_SCALE
 
-    # Circle outline (deep blue)
-    circle_box = [10, 10, 86, 86]
-    draw.ellipse(circle_box, outline=PRIMARY, width=4)
+    # Circle outline
+    draw.ellipse([10*S, 10*S, 86*S, 86*S], outline=p, width=4*S)
 
-    # "i" dot (orange, upper part)
-    dot_box = [42, 24, 54, 36]
-    draw.ellipse(dot_box, fill=ACCENT)
+    # "i" dot (accent, upper part)
+    draw.ellipse([42*S, 24*S, 54*S, 36*S], fill=a)
 
-    # "i" stem (orange, lower part)
-    draw.rounded_rectangle([42, 42, 54, 72], radius=4, fill=ACCENT)
+    # "i" stem (accent, lower part)
+    draw.rounded_rectangle([42*S, 42*S, 54*S, 72*S], radius=4*S, fill=a)
 
     return img
 
@@ -260,18 +292,25 @@ def main():
 
     for name, folder in ICONS.items():
         try:
-            img = DRAW_FUNCS[name]()
-            assert img.size == (SIZE, SIZE), f"Wrong size: {img.size}"
-            assert img.mode == "RGBA", f"Wrong mode: {img.mode}"
+            draw_fn = DRAW_FUNCS[name]
+            # Normal icon
+            img = draw_fn(dark=False)
+            img = img.resize((SIZE, SIZE), Image.LANCZOS)
+            assert img.size == (SIZE, SIZE)
             out_path = os.path.join(folder, "icon.png")
             img.save(out_path, "PNG")
-            generated.append((name, out_path))
-            print(f"  [OK] {name:20s} -> {out_path}")
+            # Dark icon
+            img_dark = draw_fn(dark=True)
+            img_dark = img_dark.resize((SIZE, SIZE), Image.LANCZOS)
+            dark_path = os.path.join(folder, "icon_dark.png")
+            img_dark.save(dark_path, "PNG")
+            generated.append(name)
+            print(f"  [OK] {name}")
         except Exception as exc:
             errors.append((name, str(exc)))
             print(f"  [ERR] {name}: {exc}")
 
-    print(f"\nGenerated {len(generated)}/{len(ICONS)} icons.")
+    print(f"\nGenerated {len(generated)}/{len(ICONS)} icon pairs (normal + dark).")
     if errors:
         print("Errors:")
         for n, e in errors:
