@@ -353,5 +353,51 @@
       "floor": 1
     },
     "expected_dispatch_result_contains": "当前模型第 1 层共有 1 个柱构件"
+  },
+  {
+    "name": "query_detail_basic",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"query_detail\",\"params\":{\"element_type\":\"column\"}}",
+    "expect_action": "query_detail",
+    "expect_params": {
+      "element_type": "column"
+    }
+  },
+  {
+    "name": "query_detail_with_floor_filter",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"查询详情\",\"params\":{\"element_type\":\"梁\",\"floor\":\"二层\"}}",
+    "expect_action": "query_detail",
+    "expect_params": {
+      "element_type": "beam",
+      "floor": 2
+    }
+  },
+  {
+    "name": "query_detail_with_section_filter",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"query_detail\",\"params\":{\"构件类型\":\"柱子\",\"楼层\":\"三层\",\"截面\":\"500\"}}",
+    "expect_action": "query_detail",
+    "expect_params": {
+      "element_type": "column",
+      "floor": 3,
+      "section": "500x500"
+    }
+  },
+  {
+    "name": "query_summary_basic",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"query_summary\",\"params\":{}}",
+    "expect_action": "query_summary",
+    "expect_params": {}
+  },
+  {
+    "name": "query_summary_with_floor_filter",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"统计汇总\",\"params\":{\"楼层\":\"二层\"}}",
+    "expect_action": "query_summary",
+    "expect_params": {
+      "floor": 2
+    }
   }
 ]
