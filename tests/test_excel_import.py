@@ -8,7 +8,7 @@ from tools.offline_runtime import make_story_levels
 
 excel_import = load_project_script(
     "excel_import_script",
-    "AI智建.extension/AI智建.tab/框架建模.panel/Excel导入.pushbutton/script.py",
+    "AISmartBuild.extension/AISmartBuild.tab/FrameModel.panel/ExcelImport.pushbutton/script.py",
 )
 
 

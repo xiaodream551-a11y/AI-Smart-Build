@@ -3,7 +3,7 @@
 from pathlib import Path
 import os
 
-from ai.conversation_parser import _load_command_entries_from_latest_conversation_log
+from ai.conversation_parser import load_command_entries_from_latest_conversation_log
 from engine.logger import (
     ConversationLog,
     OperationLog,
@@ -123,7 +123,7 @@ def test_conversation_parser_prefers_json_companion(monkeypatch, tmp_path):
     output_file = Path(output_path)
     output_file.write_text("# AI 对话会话记录\n\n损坏的 Markdown", encoding="utf-8")
 
-    entries = _load_command_entries_from_latest_conversation_log()
+    entries = load_command_entries_from_latest_conversation_log()
 
     assert len(entries) == 1
     assert entries[0]["command"]["action"] == "query_count"
@@ -144,7 +144,7 @@ def test_conversation_parser_falls_back_to_markdown_when_json_missing(monkeypatc
     output_file = Path(output_path)
     output_file.with_suffix(".json").unlink()
 
-    entries = _load_command_entries_from_latest_conversation_log()
+    entries = load_command_entries_from_latest_conversation_log()
 
     assert len(entries) == 1
     assert entries[0]["command"]["action"] == "query_count"

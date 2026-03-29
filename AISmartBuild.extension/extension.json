@@ -1,0 +1,9 @@
+{
+  "type": "extension",
+  "builtin": "False",
+  "default_enabled": "True",
+  "rocket_mode_compatible": "False",
+  "name": "AISmartBuild",
+  "description": "AI 智建 — 自然语言驱动的 Revit 智能建模系统",
+  "author": "AI智建"
+}

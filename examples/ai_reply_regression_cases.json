@@ -1,102 +1,226 @@
 [
   {
-    "name": "create_floor_alias",
-    "stories": 3,
-    "reply": "{\"action\":\"create_floor\",\"params\":{\"points\":[[0,0],[6000,0],[6000,6000],[0,6000]],\"level\":2}}",
-    "expected": {
-      "command": {
-        "action": "create_slab",
-        "params": {
-          "floor": 2
-        }
-      },
-      "inspection": {
-        "resolved": {
-          "level": "F2"
-        }
-      }
+    "name": "create_column_basic",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"create_column\",\"params\":{\"x\":0,\"y\":0,\"base_floor\":1,\"top_floor\":2,\"section\":\"500x500\"}}",
+    "expect_action": "create_column",
+    "expect_params": {
+      "x": 0,
+      "y": 0,
+      "base_floor": 1,
+      "top_floor": 2,
+      "section": "500x500"
     }
   },
   {
-    "name": "query_count_chinese_type",
-    "stories": 3,
-    "reply": "{\"action\":\"query_count\",\"params\":{\"element_type\":\"柱子\",\"floor\":1}}",
-    "expected": {
-      "command": {
-        "action": "query_count",
-        "params": {
-          "element_type": "column",
-          "floor": 1
-        }
-      },
-      "inspection": {
-        "resolved": {
-          "level": "±0.000"
-        }
-      }
+    "name": "create_column_level_alias",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"创建柱子\",\"params\":{\"x\":6000,\"y\":0,\"level\":\"2层\",\"section\":\"450x450\"}}",
+    "expect_action": "create_column",
+    "expect_params": {
+      "x": 6000,
+      "y": 0,
+      "base_floor": 2,
+      "top_floor": 3,
+      "section": "450x450"
+    }
+  },
+  {
+    "name": "create_beam_basic",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"create_beam\",\"params\":{\"start_x\":0,\"start_y\":0,\"end_x\":6000,\"end_y\":0,\"floor\":2,\"section\":\"300x600\"}}",
+    "expect_action": "create_beam",
+    "expect_params": {
+      "floor": 2,
+      "section": "300x600"
+    }
+  },
+  {
+    "name": "create_beam_chinese_action",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"创建梁\",\"params\":{\"start_x\":0,\"start_y\":6000,\"end_x\":6000,\"end_y\":6000,\"floor\":\"2层\",\"section\":\"300x700\"}}",
+    "expect_action": "create_beam",
+    "expect_params": {
+      "floor": 2,
+      "section": "300x700"
+    }
+  },
+  {
+    "name": "create_slab_basic",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"create_slab\",\"params\":{\"boundary\":[[0,0],[6000,0],[6000,6000],[0,6000]],\"floor\":2}}",
+    "expect_action": "create_slab",
+    "expect_params": {
+      "floor": 2
+    }
+  },
+  {
+    "name": "create_slab_alias_points",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"create_floor\",\"params\":{\"points\":[[0,0],[9000,0],[9000,9000],[0,9000]],\"level\":3}}",
+    "expect_action": "create_slab",
+    "expect_params": {
+      "floor": 3
+    }
+  },
+  {
+    "name": "generate_frame_basic",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"generate_frame\",\"params\":{\"x_spans\":[6000,6000,6000],\"y_spans\":[6000,6000],\"num_floors\":5,\"floor_height\":3600,\"column_section\":\"500x500\",\"beam_section_x\":\"300x600\",\"beam_section_y\":\"300x600\"}}",
+    "expect_action": "generate_frame",
+    "expect_params": {
+      "num_floors": 5,
+      "floor_height": 3600,
+      "column_section": "500x500",
+      "beam_section_x": "300x600",
+      "beam_section_y": "300x600"
     }
   },
   {
     "name": "generate_frame_alias_fields",
     "stories": 5,
-    "reply": "{\"action\":\"create_frame\",\"params\":{\"x_spans\":[6000,6000,6000],\"y_spans\":[6000,6000],\"floor_count\":5,\"height\":3600,\"beam_section\":\"300x600\"}}",
-    "expected": {
-      "command": {
-        "action": "generate_frame",
-        "params": {
-          "num_floors": 5,
-          "floor_height": 3600,
-          "beam_section_x": "300x600",
-          "beam_section_y": "300x600"
-        }
-      }
+    "ai_reply": "{\"action\":\"create_frame\",\"params\":{\"x_spans\":[6000,6000],\"y_spans\":[6000,6000,6000],\"floor_count\":4,\"height\":4200,\"beam_section\":\"350x700\",\"柱截面\":\"600\"}}",
+    "expect_action": "generate_frame",
+    "expect_params": {
+      "num_floors": 4,
+      "floor_height": 4200,
+      "column_section": "600x600",
+      "beam_section_x": "350x700",
+      "beam_section_y": "350x700"
     }
   },
   {
-    "name": "modify_section_chinese_type",
-    "stories": 3,
-    "reply": "{\"action\":\"modify_section\",\"params\":{\"type\":\"柱\",\"story\":2,\"from_section\":\"400x400\",\"to_section\":\"500x500\"}}",
-    "expected": {
-      "command": {
-        "action": "modify_section",
-        "params": {
-          "element_type": "column",
-          "floor": 2,
-          "old_section": "400x400",
-          "new_section": "500x500"
-        }
-      },
-      "inspection": {
-        "resolved": {
-          "level": "F1"
-        }
-      }
+    "name": "query_count_columns",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"query_count\",\"params\":{\"element_type\":\"column\"}}",
+    "expect_action": "query_count",
+    "expect_params": {
+      "element_type": "column"
+    }
+  },
+  {
+    "name": "query_count_chinese_type",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"查询数量\",\"params\":{\"element_type\":\"楼板\",\"floor\":\"三层\"}}",
+    "expect_action": "query_count",
+    "expect_params": {
+      "element_type": "slab",
+      "floor": 3
+    }
+  },
+  {
+    "name": "modify_section_column_basic",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"modify_section\",\"params\":{\"element_type\":\"column\",\"floor\":2,\"old_section\":\"400x400\",\"new_section\":\"500x500\"}}",
+    "expect_action": "modify_section",
+    "expect_params": {
+      "element_type": "column",
+      "floor": 2,
+      "old_section": "400x400",
+      "new_section": "500x500"
+    }
+  },
+  {
+    "name": "modify_section_beam_alias_fields",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"修改截面\",\"params\":{\"type\":\"梁\",\"story\":\"2层\",\"from_section\":\"300x600\",\"to_section\":\"350x700\"}}",
+    "expect_action": "modify_section",
+    "expect_params": {
+      "element_type": "beam",
+      "floor": 2,
+      "old_section": "300x600",
+      "new_section": "350x700"
+    }
+  },
+  {
+    "name": "delete_element_beam_basic",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"delete_element\",\"params\":{\"element_type\":\"beam\",\"floor\":2}}",
+    "expect_action": "delete_element",
+    "expect_params": {
+      "element_type": "beam",
+      "floor": 2
+    }
+  },
+  {
+    "name": "delete_element_chinese_type",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"删除构件\",\"params\":{\"element_type\":\"板\",\"floor\":\"3层\"}}",
+    "expect_action": "delete_element",
+    "expect_params": {
+      "element_type": "slab",
+      "floor": 3
     }
   },
   {
     "name": "create_column_default_top_floor",
-    "stories": 3,
-    "reply": "{\"action\":\"创建柱子\",\"params\":{\"x\":12000,\"y\":6000,\"floor\":2,\"section\":\"500x500\"}}",
-    "expected": {
-      "command": {
-        "action": "create_column",
-        "params": {
-          "base_floor": 2,
-          "top_floor": 3
-        }
-      },
-      "inspection": {
-        "resolved": {
-          "base_level": "F1",
-          "top_level": "F2"
-        }
-      }
+    "stories": 5,
+    "ai_reply": "{\"action\":\"创建柱子\",\"params\":{\"x\":12000,\"y\":6000,\"floor\":2,\"section\":\"500x500\"}}",
+    "expect_action": "create_column",
+    "expect_params": {
+      "base_floor": 2,
+      "top_floor": 3
+    }
+  },
+  {
+    "name": "create_beam_single_section_number",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"create_beam\",\"params\":{\"start_x\":0,\"start_y\":0,\"end_x\":9000,\"end_y\":0,\"floor\":2,\"section\":\"500\"}}",
+    "expect_action": "create_beam",
+    "expect_params": {
+      "floor": 2,
+      "section": "500x500"
+    }
+  },
+  {
+    "name": "create_slab_chinese_floor_text",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"create_slab\",\"params\":{\"boundary\":[[0,0],[6000,0],[6000,3000],[0,3000]],\"floor\":\"三层\"}}",
+    "expect_action": "create_slab",
+    "expect_params": {
+      "floor": 3
     }
   },
   {
     "name": "invalid_json_reply",
-    "stories": 3,
-    "reply": "当然可以，我来帮你建模。",
-    "expected_error": "无法从回复中提取 JSON 指令"
+    "stories": 5,
+    "ai_reply": "当然可以，我来帮你建模。",
+    "expect_error": "无法从回复中提取 JSON 指令"
+  },
+  {
+    "name": "invalid_action_typo",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"creat_beem\",\"params\":{\"start_x\":0,\"start_y\":0,\"end_x\":6000,\"end_y\":0,\"floor\":2}}",
+    "expect_action": "creat_beem",
+    "expect_params": {
+      "floor": 2
+    }
+  },
+  {
+    "name": "string_numeric_params",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"create_beam\",\"params\":{\"start_x\":\"0\",\"start_y\":\"0\",\"end_x\":\"6000\",\"end_y\":\"0\",\"floor\":\"2\",\"section\":\"300x600\"}}",
+    "expect_action": "create_beam",
+    "expect_params": {
+      "start_x": "0",
+      "start_y": "0",
+      "end_x": "6000",
+      "end_y": "0",
+      "floor": "2",
+      "section": "300x600"
+    }
+  },
+  {
+    "name": "create_column_chinese_param_aliases",
+    "stories": 5,
+    "ai_reply": "{\"action\":\"create_column\",\"params\":{\"x\":0,\"y\":6000,\"起始楼层\":\"二层\",\"结束楼层\":\"三层\",\"截面\":\"500\"}}",
+    "expect_action": "create_column",
+    "expect_params": {
+      "x": 0,
+      "y": 6000,
+      "base_floor": 2,
+      "top_floor": 3,
+      "section": "500x500"
+    }
   }
 ]

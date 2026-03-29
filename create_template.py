@@ -73,7 +73,7 @@ def main():
     project_dir = os.path.dirname(os.path.abspath(__file__))
     output_path = os.path.join(
         project_dir,
-        u"AI智建.extension",
+        u"AISmartBuild.extension",
         u"templates",
         u"构件导入模板.xlsx"
     )

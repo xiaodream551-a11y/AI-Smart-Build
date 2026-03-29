@@ -73,8 +73,8 @@ def assert_subset(expected, actual, path="root"):
 
 def evaluate_case(case):
     name = case.get("name", "unnamed")
-    reply = case.get("reply", "")
-    expected_error = case.get("expected_error")
+    reply = case.get("ai_reply", case.get("reply", ""))
+    expected_error = case.get("expect_error", case.get("expected_error"))
 
     try:
         levels = build_levels(case)
@@ -93,6 +93,8 @@ def evaluate_case(case):
             )
 
         expected = case.get("expected", {})
+        if not expected:
+            expected = _build_expected_from_short_case(case)
         if expected:
             assert_subset(expected.get("command", {}), command, "command")
             assert_subset(expected.get("inspection", {}), inspection, "inspection")
@@ -113,6 +115,28 @@ def evaluate_case(case):
             "name": name,
             "error": message,
         }
+
+
+def _build_expected_from_short_case(case):
+    expected = {}
+    command_expected = {}
+
+    expect_action = case.get("expect_action")
+    if expect_action not in (None, ""):
+        command_expected["action"] = expect_action
+
+    expect_params = case.get("expect_params")
+    if isinstance(expect_params, dict):
+        command_expected["params"] = expect_params
+
+    if command_expected:
+        expected["command"] = command_expected
+
+    inspection_expected = case.get("expect_inspection")
+    if isinstance(inspection_expected, dict):
+        expected["inspection"] = inspection_expected
+
+    return expected
 
 
 def run_cases(cases):

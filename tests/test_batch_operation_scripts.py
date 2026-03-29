@@ -6,12 +6,12 @@ from tools.offline_runtime import FakeDocument, make_story_levels
 
 modify_script = load_project_script(
     "modify_script_for_tests",
-    "AI智建.extension/AI智建.tab/构件操作.panel/修改构件.pushbutton/script.py",
+    "AISmartBuild.extension/AISmartBuild.tab/ElementOps.panel/ModifyElement.pushbutton/script.py",
 )
 
 delete_script = load_project_script(
     "delete_script_for_tests",
-    "AI智建.extension/AI智建.tab/构件操作.panel/删除构件.pushbutton/script.py",
+    "AISmartBuild.extension/AISmartBuild.tab/ElementOps.panel/DeleteElement.pushbutton/script.py",
 )
 
 

@@ -2,14 +2,14 @@
 
 import pytest
 
-from conftest import load_project_script
+from pyrevit import forms, revit
+
+import ai.chat_common as chat_common
+import ai.chat_controller as chat_controller
+import ai.conversation_parser as conversation_parser
+import ai.recovery as recovery
+import ai.replay as replay
 from tools.offline_runtime import FakeDocument, make_story_levels
-
-
-chat_script = load_project_script(
-    "ai_chat_script_for_tests",
-    "AI智建.extension/AI智建.tab/AI对话.panel/智能对话.pushbutton/script.py",
-)
 
 
 def test_execute_command_uses_transaction_for_write_actions(monkeypatch):
@@ -30,19 +30,19 @@ def test_execute_command_uses_transaction_for_write_actions(monkeypatch):
             records.append(("exit", self.name))
             return False
 
-    monkeypatch.setattr(chat_script.revit, "Transaction", FakeTransaction)
+    monkeypatch.setattr(revit, "Transaction", FakeTransaction)
     monkeypatch.setattr(
-        chat_script.chat_common,
+        chat_common,
         "dispatch_command",
         lambda doc_arg, command_arg, levels_arg: "ok"
     )
     monkeypatch.setattr(
-        chat_script.chat_common,
+        chat_common,
         "get_all_levels",
         lambda doc_arg: ["new-levels"]
     )
 
-    result, new_levels = chat_script._execute_command(
+    result, new_levels = chat_common.execute_command(
         doc,
         {"action": "create_beam", "params": {}},
         levels
@@ -62,22 +62,22 @@ def test_execute_command_skips_transaction_for_query_actions(monkeypatch):
     levels = ["old-levels"]
 
     monkeypatch.setattr(
-        chat_script.revit,
+        revit,
         "Transaction",
         lambda name: (_ for _ in ()).throw(AssertionError("不应开启事务"))
     )
     monkeypatch.setattr(
-        chat_script.chat_common,
+        chat_common,
         "dispatch_command",
         lambda doc_arg, command_arg, levels_arg: "count=1"
     )
     monkeypatch.setattr(
-        chat_script.chat_common,
+        chat_common,
         "get_all_levels",
         lambda doc_arg: (_ for _ in ()).throw(AssertionError("不应刷新标高"))
     )
 
-    result, new_levels = chat_script._execute_command(
+    result, new_levels = chat_common.execute_command(
         doc,
         {"action": "query_count", "params": {}},
         levels
@@ -107,7 +107,7 @@ def test_handle_local_command_reset(monkeypatch):
         def print_md(self, text):
             records.append(text)
 
-    handled, levels = chat_script._handle_local_command(
+    handled, levels = chat_controller.handle_local_command(
         "/reset",
         FakeOutput(),
         FakeClient(),
@@ -126,7 +126,7 @@ def test_handle_local_command_reset(monkeypatch):
 
 
 def test_format_user_error_for_parse_failure():
-    message = chat_script._format_user_error(
+    message = recovery.format_user_error(
         Exception("无法从回复中提取 JSON 指令：abc")
     )
 
@@ -135,7 +135,7 @@ def test_format_user_error_for_parse_failure():
 
 
 def test_build_recovery_suggestion_for_parse_failure():
-    suggestion = chat_script._build_recovery_suggestion(
+    suggestion = recovery.build_recovery_suggestion(
         "AI 回复无法解析为建模指令。\n建议换更明确的说法后重试，例如直接说明构件类型、楼层和尺寸；如果只是想重复执行上一条成功指令，可用 /replay。"
     )
 
@@ -153,7 +153,7 @@ def test_build_recovery_suggestion_for_parse_failure():
     ]
 )
 def test_is_execution_failure_result(result_text, expected):
-    assert chat_script._is_execution_failure_result(result_text) is expected
+    assert recovery.is_execution_failure_result(result_text) is expected
 
 
 @pytest.mark.parametrize(
@@ -185,7 +185,7 @@ def test_build_recovery_suggestion_for_action_specific_failures(
     command,
     expected_text
 ):
-    suggestion = chat_script._build_recovery_suggestion(
+    suggestion = recovery.build_recovery_suggestion(
         error_text,
         action=action,
         command=command,
@@ -210,7 +210,7 @@ def test_log_failed_turn_outputs_suggestion():
 
     conversation_log = FakeConversationLog()
 
-    chat_script._log_failed_turn(
+    recovery.log_failed_turn(
         FakeOutput(),
         conversation_log,
         "创建一根梁",
@@ -251,21 +251,21 @@ def test_run_ai_turn_treats_failed_result_as_error(monkeypatch):
             self.items.append(kwargs)
 
     monkeypatch.setattr(
-        chat_script.chat_controller,
+        chat_controller,
         "parse_command",
         lambda reply: {"action": "create_beam", "params": {"floor": 9}}
     )
     monkeypatch.setattr(
-        chat_script.chat_controller,
-        "_execute_command",
+        chat_controller,
+        "execute_command",
         lambda doc, command, levels: ("楼层超出范围，可用楼层为 1 到 3", levels)
     )
 
     operation_log = FakeOperationLog()
     conversation_log = FakeConversationLog()
-    chat_state = chat_script._build_chat_state()
+    chat_state = chat_controller.build_chat_state()
 
-    levels = chat_script._run_ai_turn(
+    levels = chat_controller.run_ai_turn(
         doc=None,
         output=FakeOutput(),
         client=FakeClient(),
@@ -289,14 +289,14 @@ def test_handle_local_command_retry_calls_helper(monkeypatch):
     records = []
 
     monkeypatch.setattr(
-        chat_script.chat_controller,
-        "_retry_last_input",
+        chat_controller,
+        "retry_last_input",
         lambda doc, output, client, levels, operation_log, conversation_log, chat_state: (
             records.append(chat_state["last_user_input"]) or ["retried-levels"]
         )
     )
 
-    handled, levels = chat_script._handle_local_command(
+    handled, levels = chat_controller.handle_local_command(
         "/retry",
         output=None,
         client=None,
@@ -316,14 +316,14 @@ def test_handle_local_command_replay_calls_helper(monkeypatch):
     records = []
 
     monkeypatch.setattr(
-        chat_script.chat_controller,
-        "_replay_last_command",
+        chat_controller,
+        "replay_last_command",
         lambda doc, output, levels, operation_log, conversation_log, chat_state: (
             records.append(chat_state["last_command"]["action"]) or ["replayed-levels"]
         )
     )
 
-    handled, levels = chat_script._handle_local_command(
+    handled, levels = chat_controller.handle_local_command(
         "/replay",
         output=None,
         client=None,
@@ -343,14 +343,14 @@ def test_handle_local_command_replaylog_calls_helper(monkeypatch):
     records = []
 
     monkeypatch.setattr(
-        chat_script.chat_controller,
-        "_replay_last_command_from_log",
+        chat_controller,
+        "replay_last_command_from_log",
         lambda doc, output, levels, operation_log, conversation_log, chat_state: (
             records.append("replaylog") or ["file-levels"]
         )
     )
 
-    handled, levels = chat_script._handle_local_command(
+    handled, levels = chat_controller.handle_local_command(
         "/replaylog",
         output=None,
         client=None,
@@ -366,162 +366,18 @@ def test_handle_local_command_replaylog_calls_helper(monkeypatch):
     assert records == ["replaylog"]
 
 
-def test_handle_local_command_replaypick_calls_helper(monkeypatch):
-    records = []
-
-    monkeypatch.setattr(
-        chat_script.chat_controller,
-        "_replay_pick_command_from_log",
-        lambda doc, output, levels, operation_log, conversation_log, chat_state: (
-            records.append("replaypick") or ["picked-levels"]
-        )
-    )
-
-    handled, levels = chat_script._handle_local_command(
-        "/replaypick",
-        output=None,
-        client=None,
-        doc="doc",
-        levels=["old-levels"],
-        operation_log="oplog",
-        conversation_log="convlog",
-        chat_state={},
-    )
-
-    assert handled is True
-    assert levels == ["picked-levels"]
-    assert records == ["replaypick"]
-
-
-def test_handle_local_command_replaypickfail_calls_helper(monkeypatch):
-    records = []
-
-    monkeypatch.setattr(
-        chat_script.chat_controller,
-        "_replay_pick_failed_command_from_log",
-        lambda doc, output, levels, operation_log, conversation_log, chat_state, filter_keyword=None, replay_user_input=None: (
-            records.append(filter_keyword or "replaypickfail") or ["picked-failed-levels"]
-        )
-    )
-
-    handled, levels = chat_script._handle_local_command(
-        "/replaypickfail",
-        output=None,
-        client=None,
-        doc="doc",
-        levels=["old-levels"],
-        operation_log="oplog",
-        conversation_log="convlog",
-        chat_state={},
-    )
-
-    assert handled is True
-    assert levels == ["picked-failed-levels"]
-    assert records == ["replaypickfail"]
-
-
-def test_handle_local_command_replaypickfail_passes_keyword(monkeypatch):
-    records = []
-
-    monkeypatch.setattr(
-        chat_script.chat_controller,
-        "_replay_pick_failed_command_from_log",
-        lambda doc, output, levels, operation_log, conversation_log, chat_state, filter_keyword=None, replay_user_input=None: (
-            records.append(filter_keyword) or ["picked-failed-levels"]
-        )
-    )
-
-    handled, levels = chat_script._handle_local_command(
-        "/replaypickfail 楼层",
-        output=None,
-        client=None,
-        doc="doc",
-        levels=["old-levels"],
-        operation_log="oplog",
-        conversation_log="convlog",
-        chat_state={},
-    )
-
-    assert handled is True
-    assert levels == ["picked-failed-levels"]
-    assert records == ["楼层"]
-
-
-def test_handle_local_command_replaypickfaillast_calls_helper(monkeypatch):
-    records = []
-
-    monkeypatch.setattr(
-        chat_script.chat_controller,
-        "_replay_pick_failed_command_from_last_filter",
-        lambda doc, output, levels, operation_log, conversation_log, chat_state: (
-            records.append(chat_state["last_failed_filter"]["keyword"]) or ["picked-failed-levels"]
-        )
-    )
-
-    handled, levels = chat_script._handle_local_command(
-        "/replaypickfaillast",
-        output=None,
-        client=None,
-        doc="doc",
-        levels=["old-levels"],
-        operation_log="oplog",
-        conversation_log="convlog",
-        chat_state={
-            "last_failed_filter": {"source_filter_kind": "user", "action": "create_beam", "keyword": "楼层"},
-        },
-    )
-
-    assert handled is True
-    assert levels == ["picked-failed-levels"]
-    assert records == ["楼层"]
-
-
-@pytest.mark.parametrize(
-    "command_text,step",
-    [
-        ("/replaypickfailnext", 1),
-        ("/replaypickfailprev", -1),
-    ]
-)
-def test_handle_local_command_replaypickfail_navigation_calls_helper(monkeypatch, command_text, step):
-    records = []
-
-    monkeypatch.setattr(
-        chat_script.chat_controller,
-        "_replay_adjacent_failed_command",
-        lambda doc, output, levels, operation_log, conversation_log, chat_state, step=None: (
-            records.append(step) or ["picked-failed-levels"]
-        )
-    )
-
-    handled, levels = chat_script._handle_local_command(
-        command_text,
-        output=None,
-        client=None,
-        doc="doc",
-        levels=["old-levels"],
-        operation_log="oplog",
-        conversation_log="convlog",
-        chat_state={},
-    )
-
-    assert handled is True
-    assert levels == ["picked-failed-levels"]
-    assert records == [step]
-
-
 def test_handle_local_command_replayfail_calls_helper(monkeypatch):
     records = []
 
     monkeypatch.setattr(
-        chat_script.chat_controller,
-        "_replay_pick_failed_command_from_log",
+        chat_controller,
+        "replay_pick_failed_command_from_log",
         lambda doc, output, levels, operation_log, conversation_log, chat_state, filter_keyword=None, replay_user_input=None: (
             records.append(replay_user_input) or ["failed-levels"]
         )
     )
 
-    handled, levels = chat_script._handle_local_command(
+    handled, levels = chat_controller.handle_local_command(
         "/replayfail",
         output=None,
         client=None,
@@ -544,7 +400,7 @@ def test_retry_last_input_without_history():
         def print_md(self, text):
             records.append(text)
 
-    levels = chat_script._retry_last_input(
+    levels = chat_controller.retry_last_input(
         doc=None,
         output=FakeOutput(),
         client=None,
@@ -565,7 +421,7 @@ def test_replay_last_command_without_history():
         def print_md(self, text):
             records.append(text)
 
-    levels = chat_script._replay_last_command(
+    levels = replay.replay_last_command(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -593,7 +449,7 @@ def test_extract_last_command_from_conversation_markdown():
 ```
 """
 
-    command = chat_script._extract_last_command_from_conversation_markdown(content)
+    command = conversation_parser.extract_last_command_from_conversation_markdown(content)
 
     assert command["action"] == "create_beam"
     assert command["params"]["floor"] == 2
@@ -653,7 +509,7 @@ def test_extract_command_entries_from_conversation_markdown():
 ```
 """
 
-    entries = chat_script._extract_command_entries_from_conversation_markdown(content)
+    entries = conversation_parser.extract_command_entries_from_conversation_markdown(content)
 
     assert len(entries) == 2
     assert entries[0]["round_index"] == 1
@@ -679,9 +535,9 @@ def test_replay_last_command_from_log_without_file(monkeypatch):
         def print_md(self, text):
             records.append(text)
 
-    monkeypatch.setattr(chat_script.replay, "_load_last_command_from_latest_conversation_log", lambda: None)
+    monkeypatch.setattr(replay, "load_last_command_from_latest_conversation_log", lambda: None)
 
-    levels = chat_script._replay_last_command_from_log(
+    levels = replay.replay_last_command_from_log(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -701,9 +557,9 @@ def test_replay_pick_command_from_log_without_entries(monkeypatch):
         def print_md(self, text):
             records.append(text)
 
-    monkeypatch.setattr(chat_script.replay, "_load_command_entries_from_latest_conversation_log", lambda: [])
+    monkeypatch.setattr(replay, "load_command_entries_from_latest_conversation_log", lambda: [])
 
-    levels = chat_script._replay_pick_command_from_log(
+    levels = replay.replay_pick_command_from_log(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -724,12 +580,12 @@ def test_replay_last_failed_command_from_log_without_entries(monkeypatch):
             records.append(text)
 
     monkeypatch.setattr(
-        chat_script.replay,
-        "_load_last_failed_command_entry_from_latest_conversation_log",
+        replay,
+        "load_last_failed_command_entry_from_latest_conversation_log",
         lambda: None
     )
 
-    levels = chat_script._replay_last_failed_command_from_log(
+    levels = replay.replay_last_failed_command_from_log(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -750,12 +606,12 @@ def test_replay_pick_failed_command_from_log_without_entries(monkeypatch):
             records.append(text)
 
     monkeypatch.setattr(
-        chat_script.replay,
-        "_load_failed_command_entries_from_latest_conversation_log",
+        replay,
+        "load_failed_command_entries_from_latest_conversation_log",
         lambda: []
     )
 
-    levels = chat_script._replay_pick_failed_command_from_log(
+    levels = replay.replay_pick_failed_command_from_log(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -775,25 +631,25 @@ def test_select_failed_entries_by_action_without_filter():
         "command": {"action": "create_beam"},
     }]
 
-    selected = chat_script._select_failed_entries_by_action(output=None, entries=entries)
+    selected = replay.select_failed_entries_by_action(output=None, entries=entries)
 
     assert selected == entries
 
 
 def test_classify_failed_entry_source_variants():
-    assert chat_script._classify_failed_entry_source({
+    assert conversation_parser.classify_failed_entry_source({
         "user_input": "创建一根梁",
         "source_kind": "user",
     }) == "user"
-    assert chat_script._classify_failed_entry_source({
+    assert conversation_parser.classify_failed_entry_source({
         "user_input": "/replaylog",
         "source_kind": "replay_log",
     }) == "replay_log"
-    assert chat_script._classify_failed_entry_source({
+    assert conversation_parser.classify_failed_entry_source({
         "user_input": "/replayfail",
         "source_kind": "replay_log",
     }) == "replay_fail"
-    assert chat_script._classify_failed_entry_source({
+    assert conversation_parser.classify_failed_entry_source({
         "user_input": "/replaypickfail",
         "source_kind": "replay_log",
     }) == "replay_pick_fail"
@@ -808,7 +664,7 @@ def test_select_failed_entries_by_source_without_filter():
         "command": {"action": "create_beam"},
     }]
 
-    selected = chat_script._select_failed_entries_by_source(output=None, entries=entries)
+    selected = replay.select_failed_entries_by_source(output=None, entries=entries)
 
     assert selected == entries
 
@@ -821,12 +677,12 @@ def test_select_failed_entries_by_source_cancel(monkeypatch):
             records.append(text)
 
     monkeypatch.setattr(
-        chat_script.forms.SelectFromList,
+        forms.SelectFromList,
         "show",
         lambda options, **kwargs: None
     )
 
-    selected = chat_script._select_failed_entries_by_source(
+    selected = replay.select_failed_entries_by_source(
         FakeOutput(),
         [
             {"round_index": 2, "action": "create_beam", "source_kind": "user", "user_input": "创建梁"},
@@ -846,12 +702,12 @@ def test_select_failed_entries_by_action_cancel(monkeypatch):
             records.append(text)
 
     monkeypatch.setattr(
-        chat_script.forms.SelectFromList,
+        forms.SelectFromList,
         "show",
         lambda options, **kwargs: None
     )
 
-    selected = chat_script._select_failed_entries_by_action(
+    selected = replay.select_failed_entries_by_action(
         FakeOutput(),
         [
             {"round_index": 2, "action": "create_beam", "command": {"action": "create_beam"}},
@@ -870,7 +726,7 @@ def test_filter_failed_entries_by_source_kind_without_match(monkeypatch):
         def print_md(self, text):
             records.append(text)
 
-    selected = chat_script._filter_failed_entries_by_source_kind(
+    selected = replay.filter_failed_entries_by_source_kind(
         FakeOutput(),
         [{
             "round_index": 4,
@@ -891,7 +747,7 @@ def test_filter_failed_entries_by_action_kind_without_match(monkeypatch):
         def print_md(self, text):
             records.append(text)
 
-    selected = chat_script._filter_failed_entries_by_action_kind(
+    selected = replay.filter_failed_entries_by_action_kind(
         FakeOutput(),
         [{
             "round_index": 4,
@@ -933,7 +789,7 @@ def test_filter_failed_entries_by_keyword_matches_error_and_recovery_summary(
         },
     ]
 
-    selected = chat_script._filter_failed_entries_by_keyword(
+    selected = replay.filter_failed_entries_by_keyword(
         output=None,
         entries=entries,
         filter_keyword=filter_keyword,
@@ -948,7 +804,7 @@ def test_filter_failed_entries_by_keyword_without_keyword_returns_sorted_entries
         {"round_index": 4, "error_summary": "b"},
     ]
 
-    selected = chat_script._filter_failed_entries_by_keyword(
+    selected = replay.filter_failed_entries_by_keyword(
         output=None,
         entries=entries,
         filter_keyword="",
@@ -964,7 +820,7 @@ def test_filter_failed_entries_by_keyword_without_match(monkeypatch):
         def print_md(self, text):
             records.append(text)
 
-    selected = chat_script._filter_failed_entries_by_keyword(
+    selected = replay.filter_failed_entries_by_keyword(
         output=FakeOutput(),
         entries=[{
             "round_index": 4,
@@ -1000,8 +856,8 @@ def test_replay_pick_command_from_log_executes_selected_entry(monkeypatch):
             self.items.append(kwargs)
 
     monkeypatch.setattr(
-        chat_script.replay,
-        "_load_command_entries_from_latest_conversation_log",
+        replay,
+        "load_command_entries_from_latest_conversation_log",
         lambda: [{
             "round_index": 3,
             "action": "create_beam",
@@ -1011,13 +867,13 @@ def test_replay_pick_command_from_log_executes_selected_entry(monkeypatch):
         }]
     )
     monkeypatch.setattr(
-        chat_script.forms.SelectFromList,
+        forms.SelectFromList,
         "show",
         lambda options, **kwargs: options[0]
     )
     monkeypatch.setattr(
-        chat_script.replay,
-        "_execute_command",
+        replay,
+        "execute_command",
         lambda doc, command, levels: ("ok", ["new-levels"])
     )
 
@@ -1025,7 +881,7 @@ def test_replay_pick_command_from_log_executes_selected_entry(monkeypatch):
     conversation_log = FakeConversationLog()
     chat_state = {}
 
-    levels = chat_script._replay_pick_command_from_log(
+    levels = replay.replay_pick_command_from_log(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -1062,8 +918,8 @@ def test_replay_pick_failed_command_from_log_executes_selected_entry(monkeypatch
             self.items.append(kwargs)
 
     monkeypatch.setattr(
-        chat_script.replay,
-        "_load_failed_command_entries_from_latest_conversation_log",
+        replay,
+        "load_failed_command_entries_from_latest_conversation_log",
         lambda: [{
             "round_index": 4,
             "action": "create_beam",
@@ -1083,13 +939,13 @@ def test_replay_pick_failed_command_from_log_executes_selected_entry(monkeypatch
         return options[0]
 
     monkeypatch.setattr(
-        chat_script.forms.SelectFromList,
+        forms.SelectFromList,
         "show",
         fake_select
     )
     monkeypatch.setattr(
-        chat_script.replay,
-        "_execute_command",
+        replay,
+        "execute_command",
         lambda doc, command, levels: ("ok", ["new-levels"])
     )
 
@@ -1097,7 +953,7 @@ def test_replay_pick_failed_command_from_log_executes_selected_entry(monkeypatch
     conversation_log = FakeConversationLog()
     chat_state = {}
 
-    levels = chat_script._replay_pick_failed_command_from_log(
+    levels = replay.replay_pick_failed_command_from_log(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -1135,8 +991,8 @@ def test_replay_pick_failed_command_from_log_filters_by_selected_action(monkeypa
             self.items.append(kwargs)
 
     monkeypatch.setattr(
-        chat_script.replay,
-        "_load_failed_command_entries_from_latest_conversation_log",
+        replay,
+        "load_failed_command_entries_from_latest_conversation_log",
         lambda: [
             {
                 "round_index": 4,
@@ -1169,13 +1025,13 @@ def test_replay_pick_failed_command_from_log_filters_by_selected_action(monkeypa
         return options[0]
 
     monkeypatch.setattr(
-        chat_script.forms.SelectFromList,
+        forms.SelectFromList,
         "show",
         fake_select
     )
     monkeypatch.setattr(
-        chat_script.replay,
-        "_execute_command",
+        replay,
+        "execute_command",
         lambda doc, command, levels: ("ok", ["new-levels"])
     )
 
@@ -1183,7 +1039,7 @@ def test_replay_pick_failed_command_from_log_filters_by_selected_action(monkeypa
     conversation_log = FakeConversationLog()
     chat_state = {}
 
-    levels = chat_script._replay_pick_failed_command_from_log(
+    levels = replay.replay_pick_failed_command_from_log(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -1220,8 +1076,8 @@ def test_replay_pick_failed_command_from_log_filters_by_selected_source(monkeypa
             self.items.append(kwargs)
 
     monkeypatch.setattr(
-        chat_script.replay,
-        "_load_failed_command_entries_from_latest_conversation_log",
+        replay,
+        "load_failed_command_entries_from_latest_conversation_log",
         lambda: [
             {
                 "round_index": 4,
@@ -1254,13 +1110,13 @@ def test_replay_pick_failed_command_from_log_filters_by_selected_source(monkeypa
         return options[0]
 
     monkeypatch.setattr(
-        chat_script.forms.SelectFromList,
+        forms.SelectFromList,
         "show",
         fake_select
     )
     monkeypatch.setattr(
-        chat_script.replay,
-        "_execute_command",
+        replay,
+        "execute_command",
         lambda doc, command, levels: ("ok", ["new-levels"])
     )
 
@@ -1268,7 +1124,7 @@ def test_replay_pick_failed_command_from_log_filters_by_selected_source(monkeypa
     conversation_log = FakeConversationLog()
     chat_state = {}
 
-    levels = chat_script._replay_pick_failed_command_from_log(
+    levels = replay.replay_pick_failed_command_from_log(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -1306,8 +1162,8 @@ def test_replay_pick_failed_command_from_log_filters_by_keyword(monkeypatch):
             self.items.append(kwargs)
 
     monkeypatch.setattr(
-        chat_script.replay,
-        "_load_failed_command_entries_from_latest_conversation_log",
+        replay,
+        "load_failed_command_entries_from_latest_conversation_log",
         lambda: [
             {
                 "round_index": 4,
@@ -1330,13 +1186,13 @@ def test_replay_pick_failed_command_from_log_filters_by_keyword(monkeypatch):
         ]
     )
     monkeypatch.setattr(
-        chat_script.forms.SelectFromList,
+        forms.SelectFromList,
         "show",
         lambda options, **kwargs: options[0]
     )
     monkeypatch.setattr(
-        chat_script.replay,
-        "_execute_command",
+        replay,
+        "execute_command",
         lambda doc, command, levels: ("ok", ["new-levels"])
     )
 
@@ -1344,7 +1200,7 @@ def test_replay_pick_failed_command_from_log_filters_by_keyword(monkeypatch):
     conversation_log = FakeConversationLog()
     chat_state = {}
 
-    levels = chat_script._replay_pick_failed_command_from_log(
+    levels = replay.replay_pick_failed_command_from_log(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -1381,8 +1237,8 @@ def test_replay_pick_failed_command_from_log_remembers_selected_filters(monkeypa
             self.items.append(kwargs)
 
     monkeypatch.setattr(
-        chat_script.replay,
-        "_load_failed_command_entries_from_latest_conversation_log",
+        replay,
+        "load_failed_command_entries_from_latest_conversation_log",
         lambda: [
             {
                 "round_index": 4,
@@ -1413,18 +1269,18 @@ def test_replay_pick_failed_command_from_log_remembers_selected_filters(monkeypa
             return options[1]
         return options[0]
 
-    monkeypatch.setattr(chat_script.forms.SelectFromList, "show", fake_select)
+    monkeypatch.setattr(forms.SelectFromList, "show", fake_select)
     monkeypatch.setattr(
-        chat_script.replay,
-        "_execute_command",
+        replay,
+        "execute_command",
         lambda doc, command, levels: ("ok", ["new-levels"])
     )
 
     operation_log = FakeOperationLog()
     conversation_log = FakeConversationLog()
-    chat_state = chat_script._build_chat_state()
+    chat_state = chat_controller.build_chat_state()
 
-    levels = chat_script._replay_pick_failed_command_from_log(
+    levels = replay.replay_pick_failed_command_from_log(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -1449,13 +1305,13 @@ def test_replay_pick_failed_command_from_last_filter_without_saved_state():
         def print_md(self, text):
             records.append(text)
 
-    levels = chat_script._replay_pick_failed_command_from_last_filter(
+    levels = replay.replay_pick_failed_command_from_last_filter(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
         operation_log=None,
         conversation_log=None,
-        chat_state=chat_script._build_chat_state(),
+        chat_state=chat_controller.build_chat_state(),
     )
 
     assert levels == ["old-levels"]
@@ -1469,13 +1325,13 @@ def test_replay_adjacent_failed_command_without_state():
         def print_md(self, text):
             records.append(text)
 
-    levels = chat_script._replay_adjacent_failed_command(
+    levels = replay.replay_adjacent_failed_command(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
         operation_log=None,
         conversation_log=None,
-        chat_state=chat_script._build_chat_state(),
+        chat_state=chat_controller.build_chat_state(),
         step=1,
     )
 
@@ -1490,7 +1346,7 @@ def test_replay_adjacent_failed_command_hits_boundary():
         def print_md(self, text):
             records.append(text)
 
-    chat_state = chat_script._build_chat_state()
+    chat_state = chat_controller.build_chat_state()
     chat_state["last_failed_filter"] = {
         "source_filter_kind": "user",
         "action": "create_beam",
@@ -1499,8 +1355,8 @@ def test_replay_adjacent_failed_command_hits_boundary():
     chat_state["last_failed_selected_round_index"] = 5
     monkeypatch = pytest.MonkeyPatch()
     monkeypatch.setattr(
-        chat_script.replay,
-        "_load_failed_command_entries_from_latest_conversation_log",
+        replay,
+        "load_failed_command_entries_from_latest_conversation_log",
         lambda: [{
             "round_index": 5,
             "action": "create_beam",
@@ -1514,7 +1370,7 @@ def test_replay_adjacent_failed_command_hits_boundary():
     )
 
     try:
-        levels = chat_script._replay_adjacent_failed_command(
+        levels = replay.replay_adjacent_failed_command(
             doc=None,
             output=FakeOutput(),
             levels=["old-levels"],
@@ -1552,8 +1408,8 @@ def test_replay_adjacent_failed_command_executes_next_entry(monkeypatch):
             self.items.append(kwargs)
 
     monkeypatch.setattr(
-        chat_script.replay,
-        "_load_failed_command_entries_from_latest_conversation_log",
+        replay,
+        "load_failed_command_entries_from_latest_conversation_log",
         lambda: [
             {
                 "round_index": 5,
@@ -1578,14 +1434,14 @@ def test_replay_adjacent_failed_command_executes_next_entry(monkeypatch):
         ]
     )
     monkeypatch.setattr(
-        chat_script.replay,
-        "_execute_command",
+        replay,
+        "execute_command",
         lambda doc, command, levels: ("ok", ["new-levels"])
     )
 
     operation_log = FakeOperationLog()
     conversation_log = FakeConversationLog()
-    chat_state = chat_script._build_chat_state()
+    chat_state = chat_controller.build_chat_state()
     chat_state["last_failed_filter"] = {
         "source_filter_kind": "user",
         "action": "create_beam",
@@ -1593,7 +1449,7 @@ def test_replay_adjacent_failed_command_executes_next_entry(monkeypatch):
     }
     chat_state["last_failed_selected_round_index"] = 5
 
-    levels = chat_script._replay_adjacent_failed_command(
+    levels = replay.replay_adjacent_failed_command(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -1615,8 +1471,8 @@ def test_replay_adjacent_failed_command_executes_next_entry(monkeypatch):
 
 def test_load_last_failed_filter_from_latest_conversation_log(monkeypatch):
     monkeypatch.setattr(
-        chat_script.conversation_parser,
-        "_load_command_entries_from_latest_conversation_log",
+        conversation_parser,
+        "load_command_entries_from_latest_conversation_log",
         lambda: [
             {
                 "round_index": 1,
@@ -1633,7 +1489,7 @@ def test_load_last_failed_filter_from_latest_conversation_log(monkeypatch):
         ]
     )
 
-    failed_filter = chat_script._load_last_failed_filter_from_latest_conversation_log()
+    failed_filter = conversation_parser.load_last_failed_filter_from_latest_conversation_log()
 
     assert failed_filter == {
         "source_filter_kind": "replay_fail",
@@ -1644,8 +1500,8 @@ def test_load_last_failed_filter_from_latest_conversation_log(monkeypatch):
 
 def test_load_last_failed_selected_round_index_from_latest_conversation_log(monkeypatch):
     monkeypatch.setattr(
-        chat_script.conversation_parser,
-        "_load_command_entries_from_latest_conversation_log",
+        conversation_parser,
+        "load_command_entries_from_latest_conversation_log",
         lambda: [
             {
                 "round_index": 1,
@@ -1658,7 +1514,7 @@ def test_load_last_failed_selected_round_index_from_latest_conversation_log(monk
         ]
     )
 
-    selected_round_index = chat_script._load_last_failed_selected_round_index_from_latest_conversation_log()
+    selected_round_index = conversation_parser.load_last_failed_selected_round_index_from_latest_conversation_log()
 
     assert selected_round_index == 7
 
@@ -1671,8 +1527,8 @@ def test_replay_pick_failed_command_from_last_filter_restores_from_latest_log(mo
             records.append(text)
 
     monkeypatch.setattr(
-        chat_script.replay,
-        "_load_last_failed_filter_from_latest_conversation_log",
+        replay,
+        "load_last_failed_filter_from_latest_conversation_log",
         lambda: {
             "source_filter_kind": "replay_fail",
             "action": "create_column",
@@ -1680,16 +1536,16 @@ def test_replay_pick_failed_command_from_last_filter_restores_from_latest_log(mo
         }
     )
     monkeypatch.setattr(
-        chat_script.replay,
-        "_replay_pick_failed_command_from_log",
+        replay,
+        "replay_pick_failed_command_from_log",
         lambda doc, output, levels, operation_log, conversation_log, chat_state, filter_keyword=None, source_filter_kind=None, action_filter=None, replay_user_input=None: (
             records.append((filter_keyword, source_filter_kind, action_filter, replay_user_input)) or ["new-levels"]
         )
     )
 
-    chat_state = chat_script._build_chat_state()
+    chat_state = chat_controller.build_chat_state()
 
-    levels = chat_script._replay_pick_failed_command_from_last_filter(
+    levels = replay.replay_pick_failed_command_from_last_filter(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -1731,8 +1587,8 @@ def test_replay_adjacent_failed_command_restores_state_from_latest_log(monkeypat
             self.items.append(kwargs)
 
     monkeypatch.setattr(
-        chat_script.replay,
-        "_load_last_failed_filter_from_latest_conversation_log",
+        replay,
+        "load_last_failed_filter_from_latest_conversation_log",
         lambda: {
             "source_filter_kind": "user",
             "action": "create_beam",
@@ -1740,13 +1596,13 @@ def test_replay_adjacent_failed_command_restores_state_from_latest_log(monkeypat
         }
     )
     monkeypatch.setattr(
-        chat_script.replay,
-        "_load_last_failed_selected_round_index_from_latest_conversation_log",
+        replay,
+        "load_last_failed_selected_round_index_from_latest_conversation_log",
         lambda: 5
     )
     monkeypatch.setattr(
-        chat_script.replay,
-        "_load_failed_command_entries_from_latest_conversation_log",
+        replay,
+        "load_failed_command_entries_from_latest_conversation_log",
         lambda: [
             {
                 "round_index": 5,
@@ -1771,16 +1627,16 @@ def test_replay_adjacent_failed_command_restores_state_from_latest_log(monkeypat
         ]
     )
     monkeypatch.setattr(
-        chat_script.replay,
-        "_execute_command",
+        replay,
+        "execute_command",
         lambda doc, command, levels: ("ok", ["new-levels"])
     )
 
     operation_log = FakeOperationLog()
     conversation_log = FakeConversationLog()
-    chat_state = chat_script._build_chat_state()
+    chat_state = chat_controller.build_chat_state()
 
-    levels = chat_script._replay_adjacent_failed_command(
+    levels = replay.replay_adjacent_failed_command(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -1810,21 +1666,21 @@ def test_replay_pick_failed_command_from_last_filter_reuses_saved_filters(monkey
             records.append(text)
 
     monkeypatch.setattr(
-        chat_script.replay,
-        "_replay_pick_failed_command_from_log",
+        replay,
+        "replay_pick_failed_command_from_log",
         lambda doc, output, levels, operation_log, conversation_log, chat_state, filter_keyword=None, source_filter_kind=None, action_filter=None, replay_user_input=None: (
             records.append((filter_keyword, source_filter_kind, action_filter, replay_user_input)) or ["new-levels"]
         )
     )
 
-    chat_state = chat_script._build_chat_state()
+    chat_state = chat_controller.build_chat_state()
     chat_state["last_failed_filter"] = {
         "source_filter_kind": "replay_fail",
         "action": "create_column",
         "keyword": "楼层",
     }
 
-    levels = chat_script._replay_pick_failed_command_from_last_filter(
+    levels = replay.replay_pick_failed_command_from_last_filter(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -1840,8 +1696,8 @@ def test_replay_pick_failed_command_from_last_filter_reuses_saved_filters(monkey
 
 def test_load_last_failed_command_entry_from_latest_conversation_log(monkeypatch):
     monkeypatch.setattr(
-        chat_script.conversation_parser,
-        "_load_command_entries_from_latest_conversation_log",
+        conversation_parser,
+        "load_command_entries_from_latest_conversation_log",
         lambda: [
             {
                 "round_index": 1,
@@ -1861,7 +1717,7 @@ def test_load_last_failed_command_entry_from_latest_conversation_log(monkeypatch
         ]
     )
 
-    entry = chat_script._load_last_failed_command_entry_from_latest_conversation_log()
+    entry = conversation_parser.load_last_failed_command_entry_from_latest_conversation_log()
 
     assert entry["round_index"] == 3
     assert entry["command"]["action"] == "create_beam"
@@ -1869,8 +1725,8 @@ def test_load_last_failed_command_entry_from_latest_conversation_log(monkeypatch
 
 def test_load_failed_command_entries_from_latest_conversation_log(monkeypatch):
     monkeypatch.setattr(
-        chat_script.conversation_parser,
-        "_load_command_entries_from_latest_conversation_log",
+        conversation_parser,
+        "load_command_entries_from_latest_conversation_log",
         lambda: [
             {
                 "round_index": 1,
@@ -1890,13 +1746,13 @@ def test_load_failed_command_entries_from_latest_conversation_log(monkeypatch):
         ]
     )
 
-    entries = chat_script._load_failed_command_entries_from_latest_conversation_log()
+    entries = conversation_parser.load_failed_command_entries_from_latest_conversation_log()
 
     assert [entry["round_index"] for entry in entries] == [2, 3]
 
 
 def test_group_entries_by_action_sorts_entries_within_group_by_recency():
-    groups = chat_script._group_entries_by_action([
+    groups = replay.group_entries_by_action([
         {"round_index": 1, "action": "create_beam"},
         {"round_index": 2, "action": "create_column"},
         {"round_index": 3, "action": "create_beam"},
@@ -1907,7 +1763,7 @@ def test_group_entries_by_action_sorts_entries_within_group_by_recency():
 
 
 def test_group_entries_by_action_sorts_groups_by_latest_round():
-    groups = chat_script._group_entries_by_action([
+    groups = replay.group_entries_by_action([
         {"round_index": 4, "action": "create_beam"},
         {"round_index": 6, "action": "create_column"},
         {"round_index": 5, "action": "modify_section"},
@@ -1921,7 +1777,7 @@ def test_group_entries_by_action_sorts_groups_by_latest_round():
 
 
 def test_group_entries_by_failed_source_sorts_by_latest_round():
-    groups = chat_script._group_entries_by_failed_source([
+    groups = replay.group_entries_by_failed_source([
         {"round_index": 4, "source_kind": "user", "user_input": "创建梁"},
         {"round_index": 6, "source_kind": "replay_log", "user_input": "/replayfail"},
         {"round_index": 5, "source_kind": "replay_log", "user_input": "/replaylog"},
@@ -1956,8 +1812,8 @@ def test_replay_last_failed_command_from_log_executes_latest_failure(monkeypatch
             self.items.append(kwargs)
 
     monkeypatch.setattr(
-        chat_script.replay,
-        "_load_last_failed_command_entry_from_latest_conversation_log",
+        replay,
+        "load_last_failed_command_entry_from_latest_conversation_log",
         lambda: {
             "round_index": 4,
             "status": "failed",
@@ -1965,8 +1821,8 @@ def test_replay_last_failed_command_from_log_executes_latest_failure(monkeypatch
         }
     )
     monkeypatch.setattr(
-        chat_script.replay,
-        "_execute_command",
+        replay,
+        "execute_command",
         lambda doc, command, levels: ("ok", ["new-levels"])
     )
 
@@ -1974,7 +1830,7 @@ def test_replay_last_failed_command_from_log_executes_latest_failure(monkeypatch
     conversation_log = FakeConversationLog()
     chat_state = {}
 
-    levels = chat_script._replay_last_failed_command_from_log(
+    levels = replay.replay_last_failed_command_from_log(
         doc=None,
         output=FakeOutput(),
         levels=["old-levels"],
@@ -1991,7 +1847,7 @@ def test_replay_last_failed_command_from_log_executes_latest_failure(monkeypatch
 
 
 def test_replay_command_option_shows_failed_error_summary():
-    option = chat_script.ReplayCommandOption({
+    option = replay.ReplayCommandOption({
         "round_index": 5,
         "action": "create_beam",
         "source_kind": "replay_log",

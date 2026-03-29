@@ -65,9 +65,26 @@ def test_evaluate_case_accepts_expected_error():
     result = regression_tool.evaluate_case({
         "name": "invalid-json",
         "stories": 3,
-        "reply": "这不是 JSON",
-        "expected_error": "无法从回复中提取 JSON 指令",
+        "ai_reply": "这不是 JSON",
+        "expect_error": "无法从回复中提取 JSON 指令",
     })
 
     assert result["name"] == "invalid-json"
     assert "无法从回复中提取 JSON 指令" in result["error"]
+
+
+def test_evaluate_case_accepts_short_case_format():
+    result = regression_tool.evaluate_case({
+        "name": "short-format",
+        "stories": 3,
+        "ai_reply": "{\"action\":\"create_beam\",\"params\":{\"start_x\":0,\"start_y\":0,\"end_x\":6000,\"end_y\":0,\"floor\":2,\"section\":\"300x600\"}}",
+        "expect_action": "create_beam",
+        "expect_params": {
+            "floor": 2,
+            "section": "300x600",
+        },
+    })
+
+    assert result["name"] == "short-format"
+    assert result["command"]["action"] == "create_beam"
+    assert result["command"]["params"]["floor"] == 2

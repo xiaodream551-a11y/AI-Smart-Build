@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-LIB_DIR = ROOT_DIR / "AI智建.extension" / "lib"
+LIB_DIR = ROOT_DIR / "AISmartBuild.extension" / "lib"
 
 
 class FakeElementId(object):
@@ -199,6 +199,15 @@ FakeDB = types.SimpleNamespace(
 )
 
 
+class _FakeGenericListFactory(object):
+    def __getitem__(self, _item):
+        class _FakeList(list):
+            def Add(self, value):
+                self.append(value)
+
+        return _FakeList
+
+
 def ensure_lib_path():
     """把项目根目录和 lib 目录加入 sys.path。"""
     root = str(ROOT_DIR)
@@ -212,9 +221,33 @@ def ensure_lib_path():
     return LIB_DIR
 
 
+def install_clr_stub():
+    """安装最小可用的 clr/System stub。"""
+    if "clr" not in sys.modules:
+        clr_module = types.ModuleType("clr")
+        clr_module.AddReference = lambda _name: None
+        sys.modules["clr"] = clr_module
+
+    if "System" not in sys.modules:
+        system_module = types.ModuleType("System")
+        sys.modules["System"] = system_module
+    else:
+        system_module = sys.modules["System"]
+
+    collections_module = types.ModuleType("System.Collections")
+    generic_module = types.ModuleType("System.Collections.Generic")
+    generic_module.List = _FakeGenericListFactory()
+    collections_module.Generic = generic_module
+    system_module.Collections = collections_module
+
+    sys.modules["System.Collections"] = collections_module
+    sys.modules["System.Collections.Generic"] = generic_module
+
+
 def install_pyrevit_stub():
     """安装最小可用的 pyrevit stub。"""
     pyrevit_module = types.ModuleType("pyrevit")
+    pyrevit_module.__path__ = []
     pyrevit_module.DB = FakeDB
     pyrevit_module.revit = types.SimpleNamespace(doc=None, Transaction=_NullTransaction)
     pyrevit_module.forms = types.SimpleNamespace(
@@ -230,8 +263,12 @@ def install_pyrevit_stub():
         get_logger=lambda: _FakeLogger(),
         exit=lambda: None,
     )
+    versionmgr_module = types.ModuleType("pyrevit.versionmgr")
+    versionmgr_module.get_pyrevit_version = lambda: "unknown"
+    pyrevit_module.versionmgr = versionmgr_module
 
     sys.modules["pyrevit"] = pyrevit_module
+    sys.modules["pyrevit.versionmgr"] = versionmgr_module
     return pyrevit_module
 
 
@@ -261,6 +298,7 @@ def load_module_from_path(module_name, relative_path):
 def bootstrap():
     """一次性完成离线导入准备。"""
     ensure_lib_path()
+    install_clr_stub()
     install_pyrevit_stub()
 
 

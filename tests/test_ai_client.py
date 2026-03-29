@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import json
+import types
 
+import pytest
+
+import ai.client as client_module
 from ai.client import DeepSeekClient, call_deepseek
 
 
@@ -116,3 +120,97 @@ def test_call_deepseek_uses_timeout(monkeypatch):
 
     assert result == "ok"
     assert records["timeout_ms"] == 34567
+
+
+def test_http_post_retries_on_server_error(monkeypatch):
+    client = DeepSeekClient(api_key="test-key")
+    attempts = {"count": 0}
+    wait_calls = []
+
+    class FakeWebException(client_module.WebException):
+        def __init__(self, status_code):
+            super(FakeWebException, self).__init__("{}".format(status_code))
+            self.response = types.SimpleNamespace(status_code=status_code)
+
+    def fake_http_post_once(payload, timeout_ms):
+        attempts["count"] += 1
+        if attempts["count"] < 3:
+            raise FakeWebException(500)
+        return "ok"
+
+    monkeypatch.setattr(client_module, "HttpWebRequest", object())
+    monkeypatch.setattr(client_module, "Encoding", object())
+    monkeypatch.setattr(client_module, "API_RETRY_COUNT", 2)
+    monkeypatch.setattr(client, "_http_post_once", fake_http_post_once)
+    monkeypatch.setattr(client, "_wait_before_retry", lambda retry_number: wait_calls.append(retry_number))
+
+    result = client._http_post("{}", timeout_ms=1200)
+
+    assert result == "ok"
+    assert attempts["count"] == 3
+    assert wait_calls == [1, 2]
+
+
+def test_http_post_does_not_retry_on_client_error(monkeypatch):
+    client = DeepSeekClient(api_key="test-key")
+    attempts = {"count": 0}
+    wait_calls = []
+
+    class FakeWebException(client_module.WebException):
+        def __init__(self, status_code):
+            super(FakeWebException, self).__init__("{}".format(status_code))
+            self.response = types.SimpleNamespace(status_code=status_code)
+
+    def fake_http_post_once(payload, timeout_ms):
+        attempts["count"] += 1
+        raise FakeWebException(400)
+
+    monkeypatch.setattr(client_module, "HttpWebRequest", object())
+    monkeypatch.setattr(client_module, "Encoding", object())
+    monkeypatch.setattr(client_module, "API_RETRY_COUNT", 2)
+    monkeypatch.setattr(client, "_http_post_once", fake_http_post_once)
+    monkeypatch.setattr(client, "_wait_before_retry", lambda retry_number: wait_calls.append(retry_number))
+
+    with pytest.raises(FakeWebException):
+        client._http_post("{}", timeout_ms=1200)
+
+    assert attempts["count"] == 1
+    assert wait_calls == []
+
+
+def test_http_post_retries_on_network_error(monkeypatch):
+    client = DeepSeekClient(api_key="test-key")
+    attempts = {"count": 0}
+    wait_calls = []
+
+    def fake_http_post_once(payload, timeout_ms):
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            raise OSError("connection timed out")
+        return "ok"
+
+    monkeypatch.setattr(client_module, "HttpWebRequest", object())
+    monkeypatch.setattr(client_module, "Encoding", object())
+    monkeypatch.setattr(client_module, "API_RETRY_COUNT", 2)
+    monkeypatch.setattr(client, "_http_post_once", fake_http_post_once)
+    monkeypatch.setattr(client, "_wait_before_retry", lambda retry_number: wait_calls.append(retry_number))
+
+    result = client._http_post("{}", timeout_ms=1200)
+
+    assert result == "ok"
+    assert attempts["count"] == 2
+    assert wait_calls == [1]
+
+
+def test_wait_before_retry_prints_and_sleeps(monkeypatch, capsys):
+    client = DeepSeekClient(api_key="test-key")
+    sleep_calls = []
+
+    monkeypatch.setattr(client_module, "API_RETRY_BACKOFF", 2.0)
+    monkeypatch.setattr(client_module.time, "sleep", lambda seconds: sleep_calls.append(seconds))
+
+    client._wait_before_retry(2)
+
+    captured = capsys.readouterr()
+    assert "正在重试第 2 次..." in captured.out
+    assert sleep_calls == [4.0]

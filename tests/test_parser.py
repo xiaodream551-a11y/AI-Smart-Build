@@ -3,6 +3,8 @@
 import sys
 import types
 
+import pytest
+
 from tools.offline_runtime import (
     FakeBuiltInCategory,
     FakeDocument,
@@ -44,6 +46,137 @@ def test_parse_command_normalizes_action_and_param_aliases():
     assert command["action"] == "create_slab"
     assert command["params"]["boundary"][2] == [6000, 6000]
     assert command["params"]["floor"] == "2"
+
+
+def test_parse_command_normalizes_chinese_floor_and_section_aliases():
+    reply_text = """
+```json
+{
+  "action": "create_column",
+  "params": {
+    "x": 12000,
+    "y": 6000,
+    "起始楼层": "二层",
+    "结束楼层": "三层",
+    "截面": "500"
+  }
+}
+```
+"""
+    command = parser.parse_command(reply_text)
+
+    assert command["action"] == "create_column"
+    assert command["params"]["base_floor"] == 2
+    assert command["params"]["top_floor"] == 3
+    assert command["params"]["section"] == "500x500"
+
+
+def test_parse_command_normalizes_chinese_story_floor_text():
+    reply_text = """
+```json
+{
+  "action": "create_slab",
+  "params": {
+    "boundary": [[0, 0], [6000, 0], [6000, 6000], [0, 6000]],
+    "floor": "三层"
+  }
+}
+```
+"""
+    command = parser.parse_command(reply_text)
+
+    assert command["action"] == "create_slab"
+    assert command["params"]["floor"] == 3
+
+
+def test_parse_command_normalizes_single_number_beam_section():
+    reply_text = """
+```json
+{
+  "action": "create_beam",
+  "params": {
+    "start_x": 0,
+    "start_y": 0,
+    "end_x": 6000,
+    "end_y": 0,
+    "floor": 2,
+    "section": "500"
+  }
+}
+```
+"""
+    command = parser.parse_command(reply_text)
+
+    assert command["action"] == "create_beam"
+    assert command["params"]["section"] == "500x500"
+
+
+def test_parse_command_wraps_json_array_as_batch():
+    reply_text = """
+```json
+[
+  {"action": "query_count", "params": {"element_type": "column"}},
+  {"action": "query_count", "params": {"element_type": "beam"}}
+]
+```
+"""
+    command = parser.parse_command(reply_text)
+
+    assert command["action"] == "batch"
+    assert len(command["params"]["commands"]) == 2
+    assert command["params"]["commands"][0]["action"] == "query_count"
+    assert command["params"]["commands"][1]["params"]["element_type"] == "beam"
+
+
+def test_parse_command_returns_single_command_for_single_item_array():
+    reply_text = """
+```json
+[
+  {"action": "创建楼板", "params": {"points": [[0, 0], [6000, 0], [6000, 6000]], "楼层": "2"}}
+]
+```
+"""
+    command = parser.parse_command(reply_text)
+
+    assert command["action"] == "create_slab"
+    assert command["params"]["floor"] == "2"
+    assert command["params"]["boundary"][1] == [6000, 0]
+
+
+def test_parse_command_rejects_empty_json_array():
+    with pytest.raises(ValueError, match="JSON 指令数组不能为空"):
+        parser.parse_command("[]")
+
+
+def test_normalize_command_expands_beam_section_to_x_and_y():
+    command = parser.normalize_command({
+        "action": "generate_frame",
+        "params": {
+            "beam_section": "350x700",
+        },
+    })
+
+    assert command["action"] == "generate_frame"
+    assert command["params"]["beam_section_x"] == "350x700"
+    assert command["params"]["beam_section_y"] == "350x700"
+
+
+def test_normalize_command_normalizes_batch_subcommands():
+    command = parser.normalize_command({
+        "action": "batch",
+        "params": {
+            "commands": [
+                {"action": "创建梁", "params": {"floor": "三层", "section": "500"}},
+                {"action": "create_floor", "params": {"points": [[0, 0], [1, 0], [1, 1]], "level": 2}},
+            ],
+        },
+    })
+
+    assert command["action"] == "batch"
+    assert command["params"]["commands"][0]["action"] == "create_beam"
+    assert command["params"]["commands"][0]["params"]["floor"] == 3
+    assert command["params"]["commands"][0]["params"]["section"] == "500x500"
+    assert command["params"]["commands"][1]["action"] == "create_slab"
 
 
 def test_dispatch_create_column_uses_boundary_levels(monkeypatch):
@@ -105,6 +238,76 @@ def test_dispatch_modify_section_uses_story_base_level_for_columns(monkeypatch):
     assert result == "ok"
     assert records["category"] == "column"
     assert records["level"] == "F1"
+
+
+def test_exec_modify_section_returns_error_when_levels_missing():
+    result = parser._exec_modify_section(None, {
+        "element_type": "column",
+        "floor": 2,
+        "old_section": "400x400",
+        "new_section": "500x500",
+    }, None)
+
+    assert result == "标高不足"
+
+
+def test_dispatch_command_executes_batch_and_aggregates_results(monkeypatch):
+    records = []
+
+    monkeypatch.setattr(
+        parser,
+        "_exec_create_column",
+        lambda doc, params, levels: records.append(("column", params["x"])) or "已创建柱A"
+    )
+    monkeypatch.setattr(
+        parser,
+        "_exec_create_beam",
+        lambda doc, params, levels: records.append(("beam", params["start_x"])) or "已创建梁B"
+    )
+
+    result = parser.dispatch_command(None, {
+        "action": "batch",
+        "params": {
+            "commands": [
+                {"action": "create_column", "params": {"x": 0}},
+                {"action": "create_beam", "params": {"start_x": 6000}},
+            ],
+        },
+    }, make_story_levels(3))
+
+    assert records == [("column", 0), ("beam", 6000)]
+    assert "批量执行 2 条指令" in result
+    assert "1. 已创建柱A" in result
+    assert "2. 已创建梁B" in result
+
+
+def test_dispatch_command_batch_continues_after_exception(monkeypatch):
+    records = []
+
+    def fake_exec_create_column(doc, params, levels):
+        records.append("column")
+        raise ValueError("柱参数错误")
+
+    def fake_exec_create_beam(doc, params, levels):
+        records.append("beam")
+        return "已创建梁"
+
+    monkeypatch.setattr(parser, "_exec_create_column", fake_exec_create_column)
+    monkeypatch.setattr(parser, "_exec_create_beam", fake_exec_create_beam)
+
+    result = parser.dispatch_command(None, {
+        "action": "batch",
+        "params": {
+            "commands": [
+                {"action": "create_column", "params": {}},
+                {"action": "create_beam", "params": {}},
+            ],
+        },
+    }, make_story_levels(3))
+
+    assert records == ["column", "beam"]
+    assert "1. 执行失败：柱参数错误" in result
+    assert "2. 已创建梁" in result
 
 
 def test_dispatch_generate_frame_normalizes_alias_fields(monkeypatch):
@@ -181,6 +384,29 @@ def test_query_count_accepts_chinese_element_type():
     }, levels)
 
     assert result == "当前模型第 1 层共有 1 个柱构件"
+
+
+def test_exec_delete_element_without_floor_uses_full_delete_path(monkeypatch):
+    records = {}
+    fake_module = types.ModuleType("engine.modify")
+
+    def fake_batch_delete_by_filter(doc, category, level):
+        records["doc"] = doc
+        records["category"] = category
+        records["level"] = level
+        return "deleted"
+
+    fake_module.batch_delete_by_filter = fake_batch_delete_by_filter
+    monkeypatch.setitem(sys.modules, "engine.modify", fake_module)
+
+    result = parser._exec_delete_element("doc", {
+        "element_type": "beam",
+    }, levels=make_story_levels(3))
+
+    assert result == "deleted"
+    assert records["doc"] == "doc"
+    assert records["category"] == "beam"
+    assert records["level"] is None
 
 
 def test_resolve_ai_timeout_ms_uses_frame_timeout_for_frame_requests():
