@@ -13,7 +13,7 @@ def _load_user_config():
         return path, {}
 
     try:
-        with io.open(path, "r", encoding="utf-8") as config_file:
+        with io.open(path, "r", encoding="utf-8-sig") as config_file:
             data = json.load(config_file)
         if isinstance(data, dict):
             return path, data
