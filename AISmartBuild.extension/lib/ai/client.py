@@ -139,7 +139,7 @@ class DeepSeekClient(object):
             "model": self.model,
             "messages": list(messages or []),
             "temperature": 0.1,
-        })
+        }, ensure_ascii=False)
 
     def _http_post(self, payload, timeout_ms=None):
         """Send a POST request via .NET HttpWebRequest with automatic retry on retryable errors."""
@@ -164,7 +164,7 @@ class DeepSeekClient(object):
         """Execute a single HTTP POST request."""
         request = HttpWebRequest.Create(self.api_url)
         request.Method = "POST"
-        request.ContentType = "application/json"
+        request.ContentType = "application/json; charset=utf-8"
         request.Headers.Add("Authorization", "Bearer " + self.api_key)
         request.Timeout = timeout_ms
 
