@@ -14,6 +14,8 @@ AI SmartBuild is a Revit intelligent modeling plugin built on pyRevit, targeting
 - AI Chat Modeling: Use Chinese commands to drive LLM-generated JSON, which is then executed by the shared modeling engine.
 - Excel Batch Import: Maintain an element list using a template and batch-import columns and beams.
 - Element Modification & Deletion: Supports single modification, batch modification, and deletion by category/floor.
+- Element Query: Supports count queries (`query_count`), detail/item listing (`query_detail`), and aggregate model summary (`query_summary`) via natural language.
+- Model Data Export: One-click export of all columns, beams, and slabs to JSON and Excel files via the DataIO panel (`ExportModel` button).
 
 ## 3. System Architecture
 
@@ -47,6 +49,9 @@ AI SmartBuild is a Revit intelligent modeling plugin built on pyRevit, targeting
                   | engine/beam.py            |
                   | engine/floor.py           |
                   | engine/modify.py          |
+                  | engine/frame_generator.py |
+                  | engine/element_utils.py   |
+                  | engine/export.py          |
                   +---------------------------+
                                |
                                v
@@ -55,13 +60,13 @@ AI SmartBuild is a Revit intelligent modeling plugin built on pyRevit, targeting
                   +---------------------------+
 ```
 
-Core design principle: The parametric panel, AI chat, Excel import, and modification/deletion entry points all share the same set of modeling engine functions, reducing duplicate implementation and ensuring consistent behavior.
+Core design principle: The parametric panel, AI chat, Excel import, modification/deletion, and data export entry points all share the same set of modeling engine functions and element utilities, reducing duplicate implementation and ensuring consistent behavior.
 
 ## 4. Requirements
 
 - Revit 2024
 - pyRevit 4.8+
-- DeepSeek API Key
+- An OpenAI-compatible LLM API Key (DeepSeek, Zhipu GLM, Doubao, etc.)
 
 ## 5. Installation
 
@@ -91,20 +96,32 @@ docs/安装指南.md
 4. Reload pyRevit:
    Execute pyRevit Reload in Revit, or restart Revit, so the new extension is recognized and loaded.
 
-5. Configure the DeepSeek API Key:
+5. Configure the LLM API Key:
    Use one of the following methods instead of modifying the repository source code directly:
    - Environment variable: `DEEPSEEK_API_KEY` or `AI_SMART_BUILD_DEEPSEEK_API_KEY`
    - User configuration file: `~/.ai-smart-build/config.json`
 
    If the directory does not exist, create `~/.ai-smart-build/` first.
 
-   Example configuration file:
+   Both `DEEPSEEK_*` and `LLM_*` key names are supported. For example, `LLM_API_KEY`, `LLM_MODEL`, and `LLM_API_URL` work as aliases for `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, and `DEEPSEEK_API_URL` respectively. This makes it easy to switch to any OpenAI-compatible API (e.g. Zhipu GLM, Doubao) by simply changing the URL, model name, and key.
+
+   Example configuration file (DeepSeek):
 
    ```json
    {
      "DEEPSEEK_API_KEY": "your-api-key",
      "DEEPSEEK_MODEL": "deepseek-chat",
      "DEEPSEEK_API_URL": "https://api.deepseek.com/v1/chat/completions"
+   }
+   ```
+
+   Example configuration file (Zhipu GLM, using LLM\_\* aliases):
+
+   ```json
+   {
+     "LLM_API_KEY": "your-zhipu-api-key",
+     "LLM_MODEL": "glm-4",
+     "LLM_API_URL": "https://open.bigmodel.cn/api/paas/v4/chat/completions"
    }
    ```
 
@@ -186,6 +203,10 @@ Supports single element cross-section modification, as well as batch modificatio
 Supports deleting a single selected element, or batch-deleting columns, beams, and slabs by category and floor criteria.
 
 ![Delete Elements](docs/screenshots/delete.png)
+
+### Export Model
+
+Click the "Export Model" button in the DataIO panel to export all columns, beams, and slabs from the current model. Both JSON and Excel (.xlsx) files are generated, including per-element data and an aggregate summary sheet.
 
 ### Operation Logs
 
@@ -285,6 +306,43 @@ JSON output:
 }
 ```
 
+### Example 5
+
+User command:
+
+```text
+列出第 3 层所有柱子的详细信息
+```
+
+JSON output:
+
+```json
+{
+  "action": "query_detail",
+  "params": {
+    "element_type": "column",
+    "floor": 3
+  }
+}
+```
+
+### Example 6
+
+User command:
+
+```text
+汇总一下整个模型的构件数量
+```
+
+JSON output:
+
+```json
+{
+  "action": "query_summary",
+  "params": {}
+}
+```
+
 ## 8. Project Structure
 
 ```text
@@ -322,6 +380,8 @@ AI-Smart-Build/
     │   ├── ElementOps.panel/
     │   │   ├── ModifyElement.pushbutton/
     │   │   └── DeleteElement.pushbutton/
+    │   ├── DataIO.panel/
+    │   │   └── ExportModel.pushbutton/
     │   └── Help.panel/
     │       └── About.pushbutton/
     ├── lib/
@@ -344,6 +404,8 @@ AI-Smart-Build/
     │   │   ├── floor.py
     │   │   ├── frame_generator.py
     │   │   ├── modify.py
+    │   │   ├── element_utils.py
+    │   │   ├── export.py
     │   │   └── logger.py
     │   ├── config.py
     │   └── utils.py
@@ -354,7 +416,11 @@ AI-Smart-Build/
 Directory descriptions:
 
 - `AISmartBuild.extension/AISmartBuild.tab/`: pyRevit Ribbon button entry points.
+- `AISmartBuild.extension/AISmartBuild.tab/DataIO.panel/`: Data export panel (JSON + Excel model export).
 - `AISmartBuild.extension/lib/engine/`: Shared modeling engine wrapping Revit API operations.
+- `AISmartBuild.extension/lib/engine/frame_generator.py`: Orchestrates the full frame generation pipeline (grids, levels, columns, beams, slabs).
+- `AISmartBuild.extension/lib/engine/element_utils.py`: Shared element-property helper functions used by both the parser and the export module.
+- `AISmartBuild.extension/lib/engine/export.py`: Model data export to JSON and Excel (used by the DataIO panel).
 - `AISmartBuild.extension/lib/ai/`: AI integration, prompt templates, and command dispatch.
 - `AISmartBuild.extension/templates/`: Excel import templates.
 - `AISmartBuild.extension/startup.py`: Outputs version and runtime environment info when the extension loads.
@@ -364,7 +430,7 @@ Directory descriptions:
 
 - pyRevit
 - Revit API
-- DeepSeek
+- DeepSeek / Any OpenAI-compatible LLM API
 - openpyxl
 - WPF
 
