@@ -89,6 +89,7 @@ class DeepSeekClient(object):
         self.conversation.append({"role": "user", "content": user_message})
         self._trim_conversation_history(preserve_pending_user=True)
 
+        response_text = None
         try:
             payload = self._build_payload(self.conversation)
             if timeout_ms in (None, ""):
