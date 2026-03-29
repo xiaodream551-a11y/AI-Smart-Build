@@ -63,13 +63,20 @@ class ChatWindow(forms.WPFWindow):
         <DockPanel>
             <!-- Title bar -->
             <Border DockPanel.Dock="Top" Background="#1E3A5F" Padding="16,10">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="AI 智建" FontSize="16" FontWeight="Bold"
-                               Foreground="White"/>
-                    <TextBlock Text=" — 智能对话建模" FontSize="13"
-                               Foreground="#B0C4DE" VerticalAlignment="Bottom"
-                               Margin="4,0,0,1"/>
-                </StackPanel>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="导出" FontSize="11"
+                            Foreground="#B0C4DE" Background="Transparent"
+                            BorderThickness="1" BorderBrush="#4A6A8F"
+                            Padding="10,4" Cursor="Hand" Margin="8,0,0,0"
+                            Click="on_export"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="AI 智建" FontSize="16" FontWeight="Bold"
+                                   Foreground="White"/>
+                        <TextBlock Text=" — 智能对话建模" FontSize="13"
+                                   Foreground="#B0C4DE" VerticalAlignment="Bottom"
+                                   Margin="4,0,0,1"/>
+                    </StackPanel>
+                </DockPanel>
             </Border>
 
             <!-- Hint bar -->
@@ -199,6 +206,22 @@ class ChatWindow(forms.WPFWindow):
         if Key and args.Key == Key.Return:
             self._do_send()
             args.Handled = True
+
+    def on_export(self, sender, args):
+        """Export chat content to a text file."""
+        content = self.tb_output.Text
+        if not content.strip():
+            return
+        file_path = forms.save_file(
+            file_ext="txt",
+            default_name=u"AI智建对话记录.txt",
+            title=u"导出对话记录",
+        )
+        if file_path:
+            import io
+            with io.open(file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            self.append_system(u"对话已导出到：{}".format(file_path))
 
 
 def main():
