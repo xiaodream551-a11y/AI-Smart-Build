@@ -40,16 +40,29 @@ def _should_use_transaction(action):
     return action in TRANSACTIONAL_ACTIONS
 
 
+def _collect_all_element_ids(doc):
+    """Return the set of all element integer IDs currently in *doc*."""
+    try:
+        from pyrevit import DB
+        collector = DB.FilteredElementCollector(doc).WhereElementIsNotElementType()
+        return set(e.Id.IntegerValue for e in collector)
+    except Exception:
+        return set()
+
+
 def execute_command(doc, command, levels):
     action = command.get("action", "unknown")
 
     if _should_use_transaction(action):
+        ids_before = _collect_all_element_ids(doc)
         with revit.Transaction(u"AI智建：" + action):
             result = dispatch_command(doc, command, levels)
-        return result, get_all_levels(doc)
+        ids_after = _collect_all_element_ids(doc)
+        created_ids = list(ids_after - ids_before)
+        return result, get_all_levels(doc), created_ids
 
     result = dispatch_command(doc, command, levels)
-    return result, levels
+    return result, levels, []
 
 
 def print_system_message(output, message):

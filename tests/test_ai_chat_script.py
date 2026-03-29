@@ -42,7 +42,7 @@ def test_execute_command_uses_transaction_for_write_actions(monkeypatch):
         lambda doc_arg: ["new-levels"]
     )
 
-    result, new_levels = chat_common.execute_command(
+    result, new_levels, created_ids = chat_common.execute_command(
         doc,
         {"action": "create_beam", "params": {}},
         levels
@@ -50,6 +50,7 @@ def test_execute_command_uses_transaction_for_write_actions(monkeypatch):
 
     assert result == "ok"
     assert new_levels == ["new-levels"]
+    assert isinstance(created_ids, list)
     assert records == [
         ("init", "AI智建：create_beam"),
         ("enter", "AI智建：create_beam"),
@@ -77,7 +78,7 @@ def test_execute_command_skips_transaction_for_query_actions(monkeypatch):
         lambda doc_arg: (_ for _ in ()).throw(AssertionError("不应刷新标高"))
     )
 
-    result, new_levels = chat_common.execute_command(
+    result, new_levels, created_ids = chat_common.execute_command(
         doc,
         {"action": "query_count", "params": {}},
         levels
@@ -85,6 +86,7 @@ def test_execute_command_skips_transaction_for_query_actions(monkeypatch):
 
     assert result == "count=1"
     assert new_levels == levels
+    assert created_ids == []
 
 
 def test_handle_local_command_reset(monkeypatch):
@@ -95,6 +97,7 @@ def test_handle_local_command_reset(monkeypatch):
         "last_command": {"action": "query_count"},
         "last_result": "ok",
         "last_action": "query_count",
+        "last_created_ids": [100, 101],
         "last_failed_filter": {"source_filter_kind": "user", "action": "create_beam", "keyword": "楼层"},
         "last_failed_selected_round_index": 8,
     }
@@ -121,8 +124,61 @@ def test_handle_local_command_reset(monkeypatch):
     assert "已重置对话上下文" in records[1]
     assert chat_state["last_user_input"] is None
     assert chat_state["last_command"] is None
+    assert chat_state["last_created_ids"] == []
     assert chat_state["last_failed_filter"] is None
     assert chat_state["last_failed_selected_round_index"] is None
+
+
+@pytest.mark.parametrize("command_text", ["/undo", "undo", u"撤销"])
+def test_handle_local_command_undo_is_recognized(command_text, monkeypatch):
+    records = []
+
+    class FakeOutput(object):
+        def print_md(self, text):
+            records.append(text)
+
+    monkeypatch.setattr(
+        chat_controller,
+        "undo_last_created",
+        lambda doc, output, levels, chat_state: levels
+    )
+
+    chat_state = chat_controller.build_chat_state()
+    handled, levels = chat_controller.handle_local_command(
+        command_text,
+        FakeOutput(),
+        client=None,
+        doc="doc",
+        levels=["levels"],
+        chat_state=chat_state,
+    )
+
+    assert handled is True
+
+
+def test_undo_last_created_without_ids():
+    records = []
+
+    class FakeOutput(object):
+        def print_md(self, text):
+            records.append(text)
+
+    chat_state = chat_controller.build_chat_state()
+    levels = chat_controller.undo_last_created(
+        doc=None,
+        output=FakeOutput(),
+        levels=["old-levels"],
+        chat_state=chat_state,
+    )
+
+    assert levels == ["old-levels"]
+    assert any(u"没有可撤销的操作" in t for t in records)
+
+
+def test_build_chat_state_contains_last_created_ids():
+    chat_state = chat_controller.build_chat_state()
+    assert "last_created_ids" in chat_state
+    assert chat_state["last_created_ids"] == []
 
 
 def test_format_user_error_for_parse_failure():
@@ -258,7 +314,7 @@ def test_run_ai_turn_treats_failed_result_as_error(monkeypatch):
     monkeypatch.setattr(
         chat_controller,
         "execute_command",
-        lambda doc, command, levels: ("楼层超出范围，可用楼层为 1 到 3", levels)
+        lambda doc, command, levels: ("楼层超出范围，可用楼层为 1 到 3", levels, [])
     )
 
     operation_log = FakeOperationLog()
@@ -874,7 +930,7 @@ def test_replay_pick_command_from_log_executes_selected_entry(monkeypatch):
     monkeypatch.setattr(
         replay,
         "execute_command",
-        lambda doc, command, levels: ("ok", ["new-levels"])
+        lambda doc, command, levels: ("ok", ["new-levels"], [])
     )
 
     operation_log = FakeOperationLog()
@@ -946,7 +1002,7 @@ def test_replay_pick_failed_command_from_log_executes_selected_entry(monkeypatch
     monkeypatch.setattr(
         replay,
         "execute_command",
-        lambda doc, command, levels: ("ok", ["new-levels"])
+        lambda doc, command, levels: ("ok", ["new-levels"], [])
     )
 
     operation_log = FakeOperationLog()
@@ -1032,7 +1088,7 @@ def test_replay_pick_failed_command_from_log_filters_by_selected_action(monkeypa
     monkeypatch.setattr(
         replay,
         "execute_command",
-        lambda doc, command, levels: ("ok", ["new-levels"])
+        lambda doc, command, levels: ("ok", ["new-levels"], [])
     )
 
     operation_log = FakeOperationLog()
@@ -1117,7 +1173,7 @@ def test_replay_pick_failed_command_from_log_filters_by_selected_source(monkeypa
     monkeypatch.setattr(
         replay,
         "execute_command",
-        lambda doc, command, levels: ("ok", ["new-levels"])
+        lambda doc, command, levels: ("ok", ["new-levels"], [])
     )
 
     operation_log = FakeOperationLog()
@@ -1193,7 +1249,7 @@ def test_replay_pick_failed_command_from_log_filters_by_keyword(monkeypatch):
     monkeypatch.setattr(
         replay,
         "execute_command",
-        lambda doc, command, levels: ("ok", ["new-levels"])
+        lambda doc, command, levels: ("ok", ["new-levels"], [])
     )
 
     operation_log = FakeOperationLog()
@@ -1273,7 +1329,7 @@ def test_replay_pick_failed_command_from_log_remembers_selected_filters(monkeypa
     monkeypatch.setattr(
         replay,
         "execute_command",
-        lambda doc, command, levels: ("ok", ["new-levels"])
+        lambda doc, command, levels: ("ok", ["new-levels"], [])
     )
 
     operation_log = FakeOperationLog()
@@ -1436,7 +1492,7 @@ def test_replay_adjacent_failed_command_executes_next_entry(monkeypatch):
     monkeypatch.setattr(
         replay,
         "execute_command",
-        lambda doc, command, levels: ("ok", ["new-levels"])
+        lambda doc, command, levels: ("ok", ["new-levels"], [])
     )
 
     operation_log = FakeOperationLog()
@@ -1629,7 +1685,7 @@ def test_replay_adjacent_failed_command_restores_state_from_latest_log(monkeypat
     monkeypatch.setattr(
         replay,
         "execute_command",
-        lambda doc, command, levels: ("ok", ["new-levels"])
+        lambda doc, command, levels: ("ok", ["new-levels"], [])
     )
 
     operation_log = FakeOperationLog()
@@ -1823,7 +1879,7 @@ def test_replay_last_failed_command_from_log_executes_latest_failure(monkeypatch
     monkeypatch.setattr(
         replay,
         "execute_command",
-        lambda doc, command, levels: ("ok", ["new-levels"])
+        lambda doc, command, levels: ("ok", ["new-levels"], [])
     )
 
     operation_log = FakeOperationLog()

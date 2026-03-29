@@ -3,12 +3,15 @@
 
 import time
 
+from pyrevit import revit
+
 from ai.chat_common import (
     execute_command,
     format_command_text,
     print_system_message,
     shorten_text,
     get_all_levels,
+    TRANSACTIONAL_ACTIONS,
 )
 from ai.parser import parse_command, resolve_ai_timeout_ms
 from ai.recovery import (
@@ -38,6 +41,7 @@ def print_help(output):
     output.print_md(u"- 输入 `/replay` 直接重放上一条归一化指令")
     output.print_md(u"- 输入 `/replaylog` 从最近一次会话文件重放上一条归一化指令")
     output.print_md(u"- 输入 `/replayfail` 从最近一次会话文件筛选失败记录并重放，支持来源筛选、动作筛选和上一条/下一条导航")
+    output.print_md(u"- 输入 `/undo` 撤销上一次创建/生成操作")
     output.print_md(u"- 输入 `/help` 查看示例指令")
     output.print_md(u"### 示例")
     for example in HELP_EXAMPLES:
@@ -52,6 +56,7 @@ def build_chat_state():
         "last_command": None,
         "last_result": None,
         "last_action": None,
+        "last_created_ids": [],
         "last_failed_filter": None,
         "last_failed_selected_round_index": None,
     }
@@ -66,6 +71,7 @@ def reset_chat_state(chat_state):
     chat_state["last_command"] = None
     chat_state["last_result"] = None
     chat_state["last_action"] = None
+    chat_state["last_created_ids"] = []
     chat_state["last_failed_filter"] = None
     chat_state["last_failed_selected_round_index"] = None
     return chat_state
@@ -135,6 +141,14 @@ def handle_local_command(
             chat_state,
         )
 
+    if text in ("/undo", "undo", u"撤销"):
+        return True, undo_last_created(
+            doc,
+            output,
+            levels,
+            chat_state,
+        )
+
     if command_text in ("/replayfail", "replayfail", u"重放失败记录"):
         return True, replay_pick_failed_command_from_log(
             doc,
@@ -174,6 +188,7 @@ def run_ai_turn(
     try:
         started_at = time.time()
         timeout_ms = resolve_ai_timeout_ms(user_input)
+        output.print_md(u"*AI 正在思考...*")
         reply = client.chat(user_input, timeout_ms=timeout_ms)
         request_duration_ms = int(round((time.time() - started_at) * 1000))
         output.print_md(u"**AI 解析：** `{}`".format(
@@ -184,7 +199,7 @@ def run_ai_turn(
         action = command.get("action", "unknown")
         output.print_md("```json\n{}\n```".format(format_command_text(command)))
 
-        result, levels = execute_command(doc, command, levels)
+        result, levels, created_ids = execute_command(doc, command, levels)
         if is_execution_failure_result(result):
             log_failed_turn(
                 output,
@@ -201,6 +216,9 @@ def run_ai_turn(
             chat_state["last_command"] = command
             chat_state["last_action"] = action
             return levels
+
+        if created_ids:
+            chat_state["last_created_ids"] = created_ids
 
         operation_log.log(action, result)
         conversation_log.log_turn(
@@ -272,6 +290,41 @@ def retry_last_input(
         display_input=last_user_input,
         conversation_user_input="/retry -> " + last_user_input,
     )
+
+
+def undo_last_created(doc, output, levels, chat_state):
+    """Delete the elements created in the last successful transactional operation."""
+    created_ids = (chat_state or {}).get("last_created_ids") or []
+    if not created_ids:
+        print_system_message(output, u"没有可撤销的操作")
+        return levels
+
+    from engine.modify import delete_element
+
+    success = 0
+    failed = 0
+    with revit.Transaction(u"AI智建：撤销"):
+        for elem_id in created_ids:
+            result = delete_element(doc, elem_id)
+            if u"已删除" in result:
+                success += 1
+            else:
+                failed += 1
+
+    chat_state["last_created_ids"] = []
+
+    if failed == 0:
+        print_system_message(
+            output,
+            u"已撤销上一次操作，删除了 {} 个构件".format(success),
+        )
+    else:
+        print_system_message(
+            output,
+            u"撤销完成：成功 {}，失败 {}".format(success, failed),
+        )
+
+    return get_all_levels(doc)
 
 
 def _infer_source_kind(user_input):

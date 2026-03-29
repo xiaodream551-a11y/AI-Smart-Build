@@ -53,7 +53,7 @@ def test_replay_last_command_runs_success_flow(monkeypatch):
     monkeypatch.setattr(
         replay,
         "execute_command",
-        lambda doc, command, levels: ("当前模型中共有 3 个柱构件", ["new-levels"])
+        lambda doc, command, levels: ("当前模型中共有 3 个柱构件", ["new-levels"], [])
     )
 
     levels = replay.replay_last_command(
@@ -101,7 +101,7 @@ def test_replay_last_command_from_log_runs_success_flow(monkeypatch):
     monkeypatch.setattr(
         replay,
         "execute_command",
-        lambda doc, command_arg, levels: ("已创建 300x600 梁", ["L1", "L2"])
+        lambda doc, command_arg, levels: ("已创建 300x600 梁", ["L1", "L2"], [])
     )
 
     levels = replay.replay_last_command_from_log(

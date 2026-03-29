@@ -176,7 +176,7 @@ def replay_last_command(
     output.print_md("```json\n{}\n```".format(format_command_text(last_command)))
 
     try:
-        result, levels = execute_command(doc, last_command, levels)
+        result, levels, _created_ids = execute_command(doc, last_command, levels)
         if is_execution_failure_result(result):
             log_failed_turn(
                 output,
@@ -236,7 +236,7 @@ def replay_last_command_from_log(
     output.print_md("```json\n{}\n```".format(format_command_text(command)))
 
     try:
-        result, levels = execute_command(doc, command, levels)
+        result, levels, _created_ids = execute_command(doc, command, levels)
         if is_execution_failure_result(result):
             log_failed_turn(
                 output,
@@ -311,7 +311,7 @@ def replay_pick_command_from_log(
     output.print_md("```json\n{}\n```".format(format_command_text(command)))
 
     try:
-        result, levels = execute_command(doc, command, levels)
+        result, levels, _created_ids = execute_command(doc, command, levels)
         if is_execution_failure_result(result):
             log_failed_turn(
                 output,
@@ -699,7 +699,7 @@ def _replay_failed_entry(
     output.print_md("```json\n{}\n```".format(format_command_text(command)))
 
     try:
-        result, levels = execute_command(doc, command, levels)
+        result, levels, _created_ids = execute_command(doc, command, levels)
         if is_execution_failure_result(result):
             log_failed_turn(
                 output,
