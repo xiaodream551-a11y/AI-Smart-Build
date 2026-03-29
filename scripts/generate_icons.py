@@ -44,6 +44,7 @@ ICONS = {
     "DeleteElement": os.path.join(BASE, "ElementOps.panel",  "DeleteElement.pushbutton"),
     "ExportModel":   os.path.join(BASE, "DataIO.panel",      "ExportModel.pushbutton"),
     "About":         os.path.join(BASE, "Help.panel",        "About.pushbutton"),
+    "Settings":      os.path.join(BASE, "Help.panel",        "Settings.pushbutton"),
 }
 
 
@@ -274,6 +275,35 @@ def draw_about(dark=False):
     return img
 
 
+# ─── 8. Settings — gear icon with orange accent ─────────────────────────────
+def draw_settings(dark=False):
+    img, draw = new_canvas()
+    p = PRIMARY_DARK if dark else PRIMARY
+    a = ACCENT_DARK if dark else ACCENT
+    S = RENDER_SCALE
+    # Outer gear: circle with teeth
+    cx, cy = 48*S, 48*S
+    # Gear body
+    draw.ellipse([28*S, 28*S, 68*S, 68*S], fill=p)
+    # Inner circle (cut-out effect — use background or lighter color)
+    inner_color = (240, 240, 240, 255) if not dark else (60, 60, 80, 255)
+    draw.ellipse([36*S, 36*S, 60*S, 60*S], fill=inner_color)
+    # Gear teeth (8 rectangles around the circle)
+    for i in range(8):
+        angle = math.radians(i * 45)
+        tx = cx + int(22*S * math.cos(angle))
+        ty = cy + int(22*S * math.sin(angle))
+        draw.ellipse([tx-5*S, ty-5*S, tx+5*S, ty+5*S], fill=p)
+    # Orange center dot
+    draw.ellipse([44*S, 44*S, 52*S, 52*S], fill=a)
+    # Small orange slider lines at bottom-right
+    for y_offset in [0, 8]:
+        y = (72 + y_offset) * S
+        draw.line([(58*S, y), (86*S, y)], fill=a, width=3*S)
+        draw.ellipse([(68-3)*S, y-3*S, (68+3)*S, y+3*S], fill=a)
+    return img
+
+
 # ─── Main: generate and save all icons ──────────────────────────────────────
 DRAW_FUNCS = {
     "SmartChat":     draw_smart_chat,
@@ -283,6 +313,7 @@ DRAW_FUNCS = {
     "DeleteElement": draw_delete_element,
     "ExportModel":   draw_export_model,
     "About":         draw_about,
+    "Settings":      draw_settings,
 }
 
 
