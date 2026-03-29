@@ -30,98 +30,186 @@ class StoryFloorOption(object):
         self.Name = u"第 {} 层（{}）".format(floor_number, level.Name)
 
 
-def _ask_section(prompt, default=None):
-    value = forms.ask_for_string(
-        prompt=prompt,
-        default=default or ""
-    )
-    if value is None:
-        return None
-
-    if isinstance(value, string_types):
-        value = value.strip()
-    else:
-        value = "{}".format(value).strip()
-
-    return value or None
-
-
-def _pick_mode():
-    return forms.SelectFromList.show(
-        [MODE_SINGLE, MODE_BATCH],
-        title=u"选择修改模式",
-        button_name=u"确定"
-    )
-
-
-def _run_single_modify(doc):
-    try:
-        element = revit.pick_element("选择要修改的构件")
-    except Exception:
-        return u"未选择构件"
-
-    if not element:
-        return u"未选择构件"
-
-    new_section = _ask_section(u"输入新的截面尺寸，如 600x600")
-    if not new_section:
-        return u"未输入新的截面尺寸"
-
-    with revit.Transaction(u"AI智建：修改构件"):
-        return modify_element(doc, element.Id, new_section=new_section)
-
-
-def _run_batch_modify(doc):
-    category_map = {
-        u"柱": "column",
-        u"梁": "beam",
-    }
-
-    category_text = forms.SelectFromList.show(
-        [u"柱", u"梁"],
-        title=u"选择批量修改的构件类型",
-        button_name=u"确定"
-    )
-    if not category_text:
-        return u"未选择构件类型"
-
-    levels = get_sorted_levels(doc)
-    floor_options = _build_floor_options(levels, category_map[category_text])
-    if not floor_options:
-        return u"当前模型中没有可用楼层"
-
-    selected_level = forms.SelectFromList.show(
-        floor_options,
-        name_attr="Name",
-        title=u"选择批量修改的楼层",
-        button_name=u"确定"
-    )
-    if not selected_level:
-        return u"未选择楼层"
-
-    old_section = _ask_section(u"输入旧截面尺寸，如 500x500")
-    if not old_section:
-        return u"未输入旧截面尺寸"
-
-    new_section = _ask_section(u"输入新截面尺寸，如 600x600")
-    if not new_section:
-        return u"未输入新截面尺寸"
-
-    with revit.Transaction(u"AI智建：修改构件"):
-        return batch_modify_by_filter(
-            doc,
-            category_map[category_text],
-            selected_level.floor_number,
-            old_section,
-            new_section
-        )
-
-
 def _build_floor_options(levels, category):
     return [
         StoryFloorOption(floor_number, level)
         for floor_number, level in list_story_floor_choices(levels, category)
     ]
+
+
+class ModifyForm(forms.WPFWindow):
+    """Modify element form — single window replaces multi-step dialogs."""
+
+    layout = """
+    <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+            Title="AI 智建 — 修改构件" Width="420" Height="420"
+            WindowStartupLocation="CenterScreen"
+            ResizeMode="NoResize" Background="#F0F0F0">
+
+        <Window.Resources>
+            <Style x:Key="FieldLabel" TargetType="TextBlock">
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Foreground" Value="#333333"/>
+                <Setter Property="FontSize" Value="13"/>
+            </Style>
+            <Style x:Key="FieldInput" TargetType="TextBox">
+                <Setter Property="Height" Value="30"/>
+                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="BorderBrush" Value="#CCCCCC"/>
+                <Style.Triggers>
+                    <Trigger Property="IsFocused" Value="True">
+                        <Setter Property="BorderBrush" Value="#FF6D00"/>
+                        <Setter Property="BorderThickness" Value="2"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+        </Window.Resources>
+
+        <DockPanel>
+            <Border DockPanel.Dock="Top" Background="#1E3A5F" Padding="20,12">
+                <TextBlock Text="修改构件" FontSize="18" FontWeight="Bold" Foreground="White"/>
+            </Border>
+
+            <Border DockPanel.Dock="Bottom" Padding="20,10">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="取消" Width="80" Height="36" Margin="0,0,10,0"
+                            Click="on_cancel"/>
+                    <Button Content="确定修改" Height="36" Foreground="White" Click="on_confirm">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="#1E3A5F"
+                                                    CornerRadius="6" Padding="20,0">
+                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                  VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border"
+                                                            Property="Background" Value="#FF6D00"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <Border Margin="20,12" Background="White" CornerRadius="8" Padding="16">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="1" Opacity="0.15" BlurRadius="6"/>
+                </Border.Effect>
+                <StackPanel>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="修改模式" Style="{StaticResource FieldLabel}"/>
+                        <ComboBox x:Name="cb_mode" Grid.Column="1" Height="30"
+                                  FontSize="13" SelectedIndex="0"
+                                  SelectionChanged="on_mode_changed">
+                            <ComboBoxItem Content="单个修改"/>
+                            <ComboBoxItem Content="批量修改"/>
+                        </ComboBox>
+                    </Grid>
+
+                    <StackPanel x:Name="panel_batch" Visibility="Collapsed">
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="构件类型" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="cb_category" Grid.Column="1" Height="30"
+                                      FontSize="13" SelectedIndex="0">
+                                <ComboBoxItem Content="柱"/>
+                                <ComboBoxItem Content="梁"/>
+                            </ComboBox>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="楼层" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="cb_floor" Grid.Column="1" Height="30" FontSize="13"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="旧截面" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="tb_old_section" Grid.Column="1"
+                                     Style="{StaticResource FieldInput}" Text="500x500"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <Grid Margin="0,0,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="新截面" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="tb_new_section" Grid.Column="1"
+                                 Style="{StaticResource FieldInput}" Text="600x600"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </DockPanel>
+    </Window>
+    """
+
+    def __init__(self, floor_options):
+        forms.WPFWindow.__init__(self, self.layout, literal_string=True)
+        self.result = None
+        self._floor_options = floor_options
+        for opt in floor_options:
+            self.cb_floor.Items.Add(opt.Name)
+        if self.cb_floor.Items.Count > 0:
+            self.cb_floor.SelectedIndex = 0
+
+    def on_mode_changed(self, sender, args):
+        from System.Windows import Visibility
+        if self.cb_mode.SelectedIndex == 1:
+            self.panel_batch.Visibility = Visibility.Visible
+        else:
+            self.panel_batch.Visibility = Visibility.Collapsed
+
+    def on_cancel(self, sender, args):
+        self.Close()
+
+    def on_confirm(self, sender, args):
+        new_section = self.tb_new_section.Text.strip()
+        if not new_section:
+            return
+        if self.cb_mode.SelectedIndex == 0:
+            self.result = {"mode": "single", "new_section": new_section}
+        else:
+            floor_idx = self.cb_floor.SelectedIndex
+            floor_number = self._floor_options[floor_idx].floor_number if floor_idx >= 0 and floor_idx < len(self._floor_options) else None
+            cat_index = self.cb_category.SelectedIndex
+            old_section = self.tb_old_section.Text.strip()
+            if not old_section:
+                return
+            self.result = {
+                "mode": "batch",
+                "category": "column" if cat_index == 0 else "beam",
+                "floor_number": floor_number,
+                "old_section": old_section,
+                "new_section": new_section,
+            }
+        self.Close()
 
 
 def main():
@@ -130,31 +218,46 @@ def main():
     operation_log = OperationLog()
 
     try:
-        mode = _pick_mode()
-        if not mode:
+        levels = get_sorted_levels(doc)
+        floor_options = _build_floor_options(levels, "column")
+
+        form = ModifyForm(floor_options)
+        form.ShowDialog()
+
+        if not form.result:
             script.exit()
 
-        if mode == MODE_SINGLE:
-            result = _run_single_modify(doc)
-            operation_log.log("modify_element", result)
+        result = form.result
+
+        if result["mode"] == "single":
+            try:
+                element = revit.pick_element("选择要修改的构件")
+            except Exception:
+                script.exit()
+            if not element:
+                script.exit()
+            with revit.Transaction(u"AI智建：修改构件"):
+                msg = modify_element(doc, element.Id, new_section=result["new_section"])
+            operation_log.log("modify_element", msg)
         else:
-            result = _run_batch_modify(doc)
-            operation_log.log("batch_modify_by_filter", result)
+            with revit.Transaction(u"AI智建：修改构件"):
+                msg = batch_modify_by_filter(
+                    doc,
+                    result["category"],
+                    result["floor_number"],
+                    result["old_section"],
+                    result["new_section"]
+                )
+            operation_log.log("batch_modify_by_filter", msg)
 
         log_path = export_operation_log(operation_log, u"修改构件")
-        message = result
+        message = msg
         if log_path:
-            message += u"\n\n{}\n日志：{}".format(
-                operation_log.get_summary(),
-                log_path
-            )
+            message += u"\n\n{}\n日志：{}".format(operation_log.get_summary(), log_path)
         forms.alert(message, title=u"AI 智建")
     except Exception as err:
         logger.exception(err)
-        forms.alert(
-            u"修改构件时发生错误：{}".format(err),
-            title=u"AI 智建"
-        )
+        forms.alert(u"修改构件时发生错误：{}".format(err), title=u"AI 智建")
 
 
 if __name__ == "__main__":
