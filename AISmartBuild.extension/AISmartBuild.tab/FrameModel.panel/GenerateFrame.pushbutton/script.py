@@ -20,101 +20,200 @@ class FrameParamsForm(forms.WPFWindow):
     layout = """
     <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-            Title="AI 智建 — 框架结构参数" Width="420" Height="520"
+            Title="AI 智建 — 框架结构参数" Width="450" Height="580"
             WindowStartupLocation="CenterScreen"
-            ResizeMode="NoResize">
-        <StackPanel Margin="20">
+            ResizeMode="NoResize"
+            Background="#F0F0F0">
 
-            <TextBlock Text="结构参数" FontSize="16" FontWeight="Bold"
-                       Margin="0,0,0,15"/>
+        <Window.Resources>
+            <Style x:Key="SectionCard" TargetType="Border">
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Padding" Value="16"/>
+                <Setter Property="Margin" Value="0,0,0,12"/>
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect ShadowDepth="1" Opacity="0.15" BlurRadius="6"/>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style x:Key="FieldLabel" TargetType="TextBlock">
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Foreground" Value="#333333"/>
+                <Setter Property="FontSize" Value="13"/>
+            </Style>
+            <Style x:Key="FieldInput" TargetType="TextBox">
+                <Setter Property="Height" Value="30"/>
+                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="BorderBrush" Value="#CCCCCC"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Style.Triggers>
+                    <Trigger Property="IsFocused" Value="True">
+                        <Setter Property="BorderBrush" Value="#FF6D00"/>
+                        <Setter Property="BorderThickness" Value="2"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+        </Window.Resources>
 
-            <!-- 跨数与跨距 -->
-            <Grid Margin="0,0,0,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="110"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="X 向跨距 (mm):" VerticalAlignment="Center"/>
-                <TextBox x:Name="tb_x_spans" Grid.Column="1"
-                         Text="6000, 6000, 6000"
-                         ToolTip="逗号分隔，如 6000, 7200, 6000"/>
-            </Grid>
+        <DockPanel>
+            <!-- Title bar -->
+            <Border DockPanel.Dock="Top" Background="#1E3A5F" Padding="20,14">
+                <StackPanel>
+                    <TextBlock Text="AI 智建" FontSize="20" FontWeight="Bold"
+                               Foreground="White"/>
+                    <TextBlock Text="框架结构参数配置" FontSize="12"
+                               Foreground="#B0C4DE" Margin="0,2,0,0"/>
+                </StackPanel>
+            </Border>
 
-            <Grid Margin="0,0,0,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="110"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="Y 向跨距 (mm):" VerticalAlignment="Center"/>
-                <TextBox x:Name="tb_y_spans" Grid.Column="1"
-                         Text="6000, 6000"
-                         ToolTip="逗号分隔，如 6000, 6000"/>
-            </Grid>
+            <!-- Bottom button -->
+            <Border DockPanel.Dock="Bottom" Padding="20,12" Background="#F0F0F0">
+                <Button Content="生 成 框 架" FontSize="15" FontWeight="Bold"
+                        Height="42" Foreground="White"
+                        BorderThickness="0" Cursor="Hand"
+                        Click="on_generate">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" Background="#1E3A5F"
+                                                CornerRadius="6" Padding="0">
+                                            <ContentPresenter HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border"
+                                                        Property="Background" Value="#FF6D00"/>
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="border"
+                                                        Property="Background" Value="#E65100"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Border>
 
-            <!-- 层数与层高 -->
-            <Grid Margin="0,0,0,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="110"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="层数:" VerticalAlignment="Center"/>
-                <TextBox x:Name="tb_floors" Grid.Column="1" Text="5"/>
-            </Grid>
+            <!-- Main content -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16,20,0">
+                <StackPanel>
 
-            <Grid Margin="0,0,0,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="110"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="标准层高 (mm):" VerticalAlignment="Center"/>
-                <TextBox x:Name="tb_floor_height" Grid.Column="1" Text="3600"/>
-            </Grid>
+                    <!-- Section 1: Structure parameters -->
+                    <TextBlock Text="结构参数" FontSize="14" FontWeight="SemiBold"
+                               Foreground="#1E3A5F" Margin="4,0,0,8"/>
+                    <Border Style="{StaticResource SectionCard}">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="X 向跨距 (mm)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="tb_x_spans" Grid.Column="1"
+                                         Style="{StaticResource FieldInput}"
+                                         Text="6000, 6000, 6000"
+                                         ToolTip="逗号分隔，如 6000, 7200, 6000"/>
+                            </Grid>
 
-            <Grid Margin="0,0,0,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="110"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="首层层高 (mm):" VerticalAlignment="Center"/>
-                <TextBox x:Name="tb_first_height" Grid.Column="1" Text="4200"
-                         ToolTip="留空则与标准层高相同"/>
-            </Grid>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Y 向跨距 (mm)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="tb_y_spans" Grid.Column="1"
+                                         Style="{StaticResource FieldInput}"
+                                         Text="6000, 6000"
+                                         ToolTip="逗号分隔，如 6000, 6000"/>
+                            </Grid>
 
-            <!-- 截面 -->
-            <TextBlock Text="截面参数" FontSize="16" FontWeight="Bold"
-                       Margin="0,15,0,10"/>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="层数" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="tb_floors" Grid.Column="1"
+                                         Style="{StaticResource FieldInput}"
+                                         Text="5"/>
+                            </Grid>
 
-            <Grid Margin="0,0,0,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="110"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="柱截面 (mm):" VerticalAlignment="Center"/>
-                <TextBox x:Name="tb_col_section" Grid.Column="1" Text="500x500"/>
-            </Grid>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="标准层高 (mm)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="tb_floor_height" Grid.Column="1"
+                                         Style="{StaticResource FieldInput}"
+                                         Text="3600"/>
+                            </Grid>
 
-            <Grid Margin="0,0,0,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="110"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="X 向梁截面:" VerticalAlignment="Center"/>
-                <TextBox x:Name="tb_beam_x" Grid.Column="1" Text="300x600"/>
-            </Grid>
+                            <Grid Margin="0,0,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="首层层高 (mm)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="tb_first_height" Grid.Column="1"
+                                         Style="{StaticResource FieldInput}"
+                                         Text="4200"
+                                         ToolTip="留空则与标准层高相同"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
 
-            <Grid Margin="0,0,0,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="110"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="Y 向梁截面:" VerticalAlignment="Center"/>
-                <TextBox x:Name="tb_beam_y" Grid.Column="1" Text="300x600"/>
-            </Grid>
+                    <!-- Section 2: Cross-section parameters -->
+                    <TextBlock Text="截面参数" FontSize="14" FontWeight="SemiBold"
+                               Foreground="#1E3A5F" Margin="4,4,0,8"/>
+                    <Border Style="{StaticResource SectionCard}">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="柱截面 (mm)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="tb_col_section" Grid.Column="1"
+                                         Style="{StaticResource FieldInput}"
+                                         Text="500x500"/>
+                            </Grid>
 
-            <!-- 按钮 -->
-            <Button Content="生成框架" FontSize="14" Height="38"
-                    Margin="0,20,0,0" Click="on_generate"/>
-        </StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="X 向梁截面" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="tb_beam_x" Grid.Column="1"
+                                         Style="{StaticResource FieldInput}"
+                                         Text="300x600"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Y 向梁截面" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="tb_beam_y" Grid.Column="1"
+                                         Style="{StaticResource FieldInput}"
+                                         Text="300x600"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
     </Window>
     """
 
