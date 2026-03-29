@@ -42,6 +42,9 @@ ACTION_REQUIRED_PARAMS = {
     "query_count": [
         ("element_type", u"构件类别"),
     ],
+    "query_detail": [
+        ("element_type", u"构件类别"),
+    ],
 }
 
 ACTION_LABELS = {
@@ -52,6 +55,8 @@ ACTION_LABELS = {
     "modify_section": u"修改截面",
     "delete_element": u"删除构件",
     "query_count": u"查询数量",
+    "query_detail": u"查询明细",
+    "query_summary": u"统计汇总",
     "unknown": u"未知动作",
 }
 
@@ -191,7 +196,7 @@ def build_recovery_suggestion(error_text, action="", user_input="", command=None
         return u"查询当前只支持 `column`、`beam`、`slab`，中文可写成“柱”“梁”“板”；请改写后重试。"
 
     if text.startswith(u"不支持的操作类型") or text.startswith(u"不支持的构件类别"):
-        return u"请把需求改写成当前已支持的柱、梁、板创建，框架生成，截面修改，构件删除或数量查询。"
+        return u"请把需求改写成当前已支持的柱、梁、板创建，框架生成，截面修改，构件删除、数量查询、明细查询或统计汇总。"
 
     if text.startswith(u"未找到") and action in ("modify_section", "delete_element"):
         return u"当前筛选条件没有匹配到构件，建议检查楼层、构件类别和截面条件；必要时先用查询命令确认目标是否存在。"
@@ -212,7 +217,15 @@ def _build_floor_recovery_suggestion(action):
     if action == "create_column":
         return u"柱的 `base_floor/top_floor` 使用边界编号：首层柱是 `1 -> 2`，二层柱是 `2 -> 3`；请先确认输入没有把故事层号直接当成 `top_floor`。"
 
-    if action in ("create_beam", "create_slab", "modify_section", "delete_element", "query_count"):
+    if action in (
+        "create_beam",
+        "create_slab",
+        "modify_section",
+        "delete_element",
+        "query_count",
+        "query_detail",
+        "query_summary",
+    ):
         return u"`floor` 在梁、板、修改、删除、统计里都表示故事层编号，从 1 开始；请按当前模型实际楼层范围重试。"
 
     return u"请按当前模型实际楼层范围重试，并确认柱使用边界编号，其它按楼层筛选的动作使用故事层编号。"

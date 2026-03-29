@@ -5,7 +5,21 @@ import json
 import re
 
 from config import API_TIMEOUT_MS, FRAME_API_TIMEOUT_MS
+from engine.element_utils import (
+    format_number,
+    get_element_area_sqm,
+    get_element_level_id,
+    get_element_level_int,
+    get_element_section_text,
+    is_valid_element_id,
+    looks_like_plain_numeric_text,
+    normalize_numeric_text,
+    resolve_level_name,
+    to_text,
+    try_parse_section_name,
+)
 from utils import (
+    feet_to_mm,
     get_story_count,
     normalize_floor_number,
     resolve_story_level_by_category,
@@ -51,6 +65,19 @@ _ACTION_ALIASES = {
     "query_elements": "query_count",
     "统计数量": "query_count",
     "查询数量": "query_count",
+    "query_detail": "query_detail",
+    "detail": "query_detail",
+    "query_list": "query_detail",
+    "list_elements": "query_detail",
+    "查询详情": "query_detail",
+    "查询明细": "query_detail",
+    "构件明细": "query_detail",
+    "query_summary": "query_summary",
+    "summary": "query_summary",
+    "model_summary": "query_summary",
+    "查询汇总": "query_summary",
+    "统计汇总": "query_summary",
+    "模型统计": "query_summary",
     "unknown": "unknown",
 }
 
@@ -151,6 +178,10 @@ def dispatch_command(doc, command, levels=None):
         return _exec_generate_frame(doc, params)
     elif action == "query_count":
         return _exec_query_count(doc, params)
+    elif action == "query_detail":
+        return _exec_query_detail(doc, params)
+    elif action == "query_summary":
+        return _exec_query_summary(doc, params)
     elif action == "modify_section":
         return _exec_modify_section(doc, params, levels)
     elif action == "delete_element":
@@ -195,7 +226,7 @@ def normalize_command(command):
 
 def resolve_ai_timeout_ms(user_input):
     """根据用户输入推断本轮 AI 请求超时配置。"""
-    text = _to_text(user_input)
+    text = to_text(user_input)
     if _looks_like_generate_frame_request(text):
         return FRAME_API_TIMEOUT_MS
     return API_TIMEOUT_MS
@@ -220,7 +251,7 @@ def _normalize_parsed_command_payload(payload):
 
 
 def _normalize_action(action):
-    text = _to_text(action)
+    text = to_text(action)
     if not text:
         return ""
     return _ACTION_ALIASES.get(text.lower(), _ACTION_ALIASES.get(text, text))
@@ -276,7 +307,15 @@ def _normalize_params_by_action(action, params):
             normalized["section"] = _normalize_section_param_value(section)
         return normalized
 
-    if action in ("create_beam", "create_slab", "modify_section", "delete_element", "query_count"):
+    if action in (
+        "create_beam",
+        "create_slab",
+        "modify_section",
+        "delete_element",
+        "query_count",
+        "query_detail",
+        "query_summary",
+    ):
         floor = _first_present(
             normalized,
             ["floor", "level", "story", "楼层", "层", "故事层"]
@@ -367,11 +406,19 @@ def _normalize_params_by_action(action, params):
         if section is not None:
             normalized["section"] = _normalize_section_param_value(section)
 
+    if action == "query_detail":
+        section = _first_present(
+            normalized,
+            ["section", "截面", "构件截面"]
+        )
+        if section is not None:
+            normalized["section"] = _normalize_section_param_value(section)
+
     return normalized
 
 
 def _normalize_element_type(element_type):
-    text = _to_text(element_type)
+    text = to_text(element_type)
     if not text:
         return ""
     return _ELEMENT_TYPE_ALIASES.get(text.lower(), _ELEMENT_TYPE_ALIASES.get(text, text))
@@ -384,14 +431,8 @@ def _first_present(data, keys):
     return None
 
 
-def _to_text(value):
-    if value is None:
-        return ""
-    return "{}".format(value).strip()
-
-
 def _looks_like_generate_frame_request(text):
-    normalized_text = _to_text(text).lower()
+    normalized_text = to_text(text).lower()
     if not normalized_text:
         return False
 
@@ -407,8 +448,8 @@ def _looks_like_generate_frame_request(text):
 
 
 def _normalize_floor_param_value(value):
-    text = _to_text(value)
-    if text and _looks_like_plain_numeric_text(text):
+    text = to_text(value)
+    if text and looks_like_plain_numeric_text(text):
         return value
 
     normalized_floor = normalize_floor_number(value)
@@ -418,32 +459,21 @@ def _normalize_floor_param_value(value):
 
 
 def _normalize_section_param_value(value):
-    text = _to_text(value)
+    text = to_text(value)
     if not text:
         return text
 
     normalized = text.replace(u"×", "x").replace("X", "x").strip()
     if "x" in normalized:
         parts = normalized.split("x")
-        if len(parts) == 2 and _looks_like_plain_numeric_text(parts[0]) and _looks_like_plain_numeric_text(parts[1]):
-            return "{}x{}".format(_normalize_numeric_text(parts[0]), _normalize_numeric_text(parts[1]))
+        if len(parts) == 2 and looks_like_plain_numeric_text(parts[0]) and looks_like_plain_numeric_text(parts[1]):
+            return "{}x{}".format(normalize_numeric_text(parts[0]), normalize_numeric_text(parts[1]))
         return normalized
 
-    if _looks_like_plain_numeric_text(normalized):
-        token = _normalize_numeric_text(normalized)
+    if looks_like_plain_numeric_text(normalized):
+        token = normalize_numeric_text(normalized)
         return "{}x{}".format(token, token)
     return normalized
-
-
-def _looks_like_plain_numeric_text(text):
-    return re.match(r"^\d+(?:\.\d+)?$", _to_text(text)) is not None
-
-
-def _normalize_numeric_text(text):
-    value = float(_to_text(text))
-    if int(value) == value:
-        return str(int(value))
-    return "{}".format(value)
 
 
 # ============================================================
@@ -602,53 +632,17 @@ def _exec_delete_element(doc, params, levels):
 
 
 def _exec_query_count(doc, params):
-    from pyrevit import DB
-    from utils import get_sorted_levels
-
     element_type = params.get("element_type", "")
     floor = params.get("floor")
+    elements, _levels, error_text = _collect_query_elements(
+        doc,
+        element_type,
+        floor=floor,
+    )
+    if error_text:
+        return error_text
 
-    type_map = {
-        "column": DB.BuiltInCategory.OST_StructuralColumns,
-        "beam": DB.BuiltInCategory.OST_StructuralFraming,
-        "slab": DB.BuiltInCategory.OST_Floors,
-        "floor": DB.BuiltInCategory.OST_Floors,
-    }
-
-    cat = type_map.get(element_type)
-    if not cat:
-        return "不支持查询的构件类型: {}".format(element_type)
-
-    collector = DB.FilteredElementCollector(doc) \
-        .OfCategory(cat) \
-        .WhereElementIsNotElementType()
-
-    if floor is not None:
-        levels = get_sorted_levels(doc)
-        if not levels:
-            return "标高不足"
-
-        floor_index = normalize_floor_number(floor)
-        if floor_index is None:
-            return "楼层参数无效: {}".format(floor)
-
-        level = resolve_story_level_by_category(levels, cat, floor_index)
-        if not level:
-            return "楼层超出范围，可用楼层为 1 到 {}".format(get_story_count(levels))
-
-        level_id = level.Id
-        filtered_collector = _apply_collector_level_filter(DB, collector, level_id, element_type)
-        if filtered_collector is not None:
-            count = filtered_collector.GetElementCount()
-        else:
-            target_level_id = getattr(level_id, "IntegerValue", -1)
-            count = 0
-            # 某些 pyRevit/IronPython 组合下过滤器构造会失败，这里保留最慢但最稳的逐个元素兜底。
-            for element in collector:
-                if _get_element_level_int(DB, element) == target_level_id:
-                    count += 1
-    else:
-        count = collector.GetElementCount()
+    count = len(elements)
 
     name_map = {"column": "柱", "beam": "梁", "slab": "板", "floor": "板"}
     if floor is None:
@@ -660,27 +654,275 @@ def _exec_query_count(doc, params):
     )
 
 
-def _get_element_level_int(DB, element):
-    level_id = getattr(element, "LevelId", None)
-    integer_value = getattr(level_id, "IntegerValue", -1)
-    if integer_value > 0:
-        return integer_value
+def _exec_query_detail(doc, params):
+    element_type = params.get("element_type", "")
+    floor = params.get("floor")
+    section = params.get("section", "")
 
-    for builtin in [
-        DB.BuiltInParameter.FAMILY_BASE_LEVEL_PARAM,
-        DB.BuiltInParameter.INSTANCE_REFERENCE_LEVEL_PARAM,
-        DB.BuiltInParameter.SCHEDULE_LEVEL_PARAM,
-        DB.BuiltInParameter.LEVEL_PARAM,
-    ]:
-        param = element.get_Parameter(builtin)
-        if not param or param.StorageType != DB.StorageType.ElementId:
-            continue
-        param_level_id = param.AsElementId()
-        integer_value = getattr(param_level_id, "IntegerValue", -1)
-        if integer_value > 0:
-            return integer_value
+    elements, levels, error_text = _collect_query_elements(
+        doc,
+        element_type,
+        floor=floor,
+        section=section,
+    )
+    if error_text:
+        return error_text
+    if not elements:
+        return _format_query_detail_empty(element_type, floor, section)
 
-    return -1
+    from pyrevit import DB
+
+    lines = [_format_query_detail_header(len(elements), element_type, floor, section)]
+    for index, element in enumerate(elements, start=1):
+        lines.append("{}. {}".format(
+            index,
+            _format_query_detail_line(DB, doc, levels, element, element_type),
+        ))
+    return "\n".join(lines)
+
+
+def _exec_query_summary(doc, params):
+    from utils import get_sorted_levels
+
+    floor = params.get("floor")
+    levels = get_sorted_levels(doc)
+    if not levels:
+        return "标高不足"
+
+    header = "模型统计："
+    if floor is not None:
+        header = "第 {} 层模型统计：".format(floor)
+
+    column_elements, _levels, error_text = _collect_query_elements(doc, "column", floor=floor)
+    if error_text:
+        return error_text
+    beam_elements, _levels, error_text = _collect_query_elements(doc, "beam", floor=floor)
+    if error_text:
+        return error_text
+    slab_elements, _levels, error_text = _collect_query_elements(doc, "slab", floor=floor)
+    if error_text:
+        return error_text
+
+    lines = [
+        header,
+        "标高：{} 个（{} ~ {}）".format(
+            len(levels),
+            getattr(levels[0], "Name", ""),
+            getattr(levels[-1], "Name", ""),
+        ),
+        _format_query_summary_line("column", column_elements),
+        _format_query_summary_line("beam", beam_elements),
+        _format_query_summary_line("slab", slab_elements),
+    ]
+    return "\n".join(lines)
+
+
+def _collect_query_elements(doc, element_type, floor=None, section=None):
+    from pyrevit import DB
+    from utils import get_sorted_levels
+
+    cat = _get_query_category(DB, element_type)
+    if not cat:
+        return None, None, "不支持查询的构件类型: {}".format(element_type)
+
+    collector = DB.FilteredElementCollector(doc) \
+        .OfCategory(cat) \
+        .WhereElementIsNotElementType()
+    elements = list(collector)
+    levels = get_sorted_levels(doc)
+
+    if floor is not None:
+        if not levels:
+            return None, None, "标高不足"
+
+        floor_index = normalize_floor_number(floor)
+        if floor_index is None:
+            return None, levels, "楼层参数无效: {}".format(floor)
+
+        level = resolve_story_level_by_category(levels, cat, floor_index)
+        if not level:
+            return None, levels, "楼层超出范围，可用楼层为 1 到 {}".format(get_story_count(levels))
+
+        level_id = level.Id
+        filtered_collector = _apply_collector_level_filter(DB, collector, level_id, element_type)
+        if filtered_collector is not None:
+            elements = list(filtered_collector)
+        else:
+            target_level_id = getattr(level_id, "IntegerValue", -1)
+            elements = [
+                element for element in elements
+                if get_element_level_int(DB, element) == target_level_id
+            ]
+
+    if section:
+        target_section = _normalize_section_param_value(section)
+        elements = [
+            element for element in elements
+            if _normalize_section_param_value(get_element_section_text(DB, element)) == target_section
+        ]
+
+    elements.sort(key=lambda element: _build_query_sort_key(DB, element, element_type))
+    return elements, levels, ""
+
+
+def _get_query_category(DB, element_type):
+    return {
+        "column": DB.BuiltInCategory.OST_StructuralColumns,
+        "beam": DB.BuiltInCategory.OST_StructuralFraming,
+        "slab": DB.BuiltInCategory.OST_Floors,
+        "floor": DB.BuiltInCategory.OST_Floors,
+    }.get(element_type)
+
+
+def _format_query_detail_empty(element_type, floor=None, section=None):
+    scope_text = "当前模型中"
+    if floor is not None:
+        scope_text = "第 {} 层".format(floor)
+
+    target_text = _get_query_element_name(element_type)
+    if section and element_type in ("column", "beam"):
+        target_text = "{} {}".format(
+            _normalize_section_param_value(section),
+            target_text,
+        )
+
+    return "{}未找到 {}".format(scope_text, target_text)
+
+
+def _format_query_detail_header(count, element_type, floor=None, section=None):
+    scope_text = "当前模型中"
+    if floor is not None:
+        scope_text = "第 {} 层".format(floor)
+
+    if section and element_type in ("column", "beam"):
+        return "{}共有 {} {} {} {}：".format(
+            scope_text,
+            count,
+            _get_query_element_unit(element_type),
+            _normalize_section_param_value(section),
+            _get_query_element_name(element_type),
+        )
+
+    return "{}共有 {} {}{}：".format(
+        scope_text,
+        count,
+        _get_query_element_unit(element_type),
+        _get_query_element_name(element_type),
+    )
+
+
+def _format_query_detail_line(DB, doc, levels, element, element_type):
+    parts = ["ID={}".format(getattr(getattr(element, "Id", None), "IntegerValue", ""))]
+    floor_label = _resolve_element_story_label(DB, levels, element_type, element)
+    if not floor_label:
+        floor_label = resolve_level_name(doc, get_element_level_id(DB, element))
+
+    if element_type == "column":
+        point = getattr(getattr(element, "Location", None), "Point", None)
+        parts.append("位置 {}".format(_format_point_text(point)))
+    elif element_type == "beam":
+        curve = getattr(getattr(element, "Location", None), "Curve", None)
+        if curve is not None:
+            parts.append("起点 {}".format(_format_point_text(curve.GetEndPoint(0))))
+            parts.append("终点 {}".format(_format_point_text(curve.GetEndPoint(1))))
+    elif element_type == "slab":
+        parts.append("面积 {} m²".format(format_number(get_element_area_sqm(DB, element))))
+
+    if floor_label:
+        parts.append("楼层 {}".format(floor_label))
+
+    section_text = get_element_section_text(DB, element)
+    if section_text and element_type in ("column", "beam"):
+        parts.append("截面 {}".format(section_text))
+
+    return ", ".join(parts)
+
+
+def _format_query_summary_line(element_type, elements):
+    count = len(elements)
+    label = _get_query_element_name(element_type)
+    unit = _get_query_element_unit(element_type)
+    if element_type == "slab":
+        return "{}：{} {}".format(label, count, unit)
+
+    from pyrevit import DB
+
+    section_counts = {}
+    for element in elements:
+        section_text = get_element_section_text(DB, element) or "未标注截面"
+        section_counts[section_text] = section_counts.get(section_text, 0) + 1
+
+    if not section_counts:
+        return "{}：{} {}".format(label, count, unit)
+
+    details = []
+    for section_text in sorted(section_counts):
+        details.append("{}: {}".format(section_text, section_counts[section_text]))
+    return "{}：{} {}（{}）".format(label, count, unit, ", ".join(details))
+
+
+def _get_query_element_name(element_type):
+    return {
+        "column": "柱",
+        "beam": "梁",
+        "slab": "板",
+        "floor": "板",
+    }.get(element_type, "")
+
+
+def _get_query_element_unit(element_type):
+    return {
+        "column": "根",
+        "beam": "根",
+        "slab": "块",
+        "floor": "块",
+    }.get(element_type, "个")
+
+
+def _build_query_sort_key(DB, element, element_type):
+    element_id = getattr(getattr(element, "Id", None), "IntegerValue", -1)
+    if element_type == "column":
+        point = getattr(getattr(element, "Location", None), "Point", None)
+        return _build_point_sort_key(point) + (element_id,)
+
+    if element_type == "beam":
+        curve = getattr(getattr(element, "Location", None), "Curve", None)
+        if curve is not None:
+            start = curve.GetEndPoint(0)
+            end = curve.GetEndPoint(1)
+            return _build_point_sort_key(start) + _build_point_sort_key(end) + (element_id,)
+
+    return (get_element_level_int(DB, element), element_id)
+
+
+def _build_point_sort_key(point):
+    if point is None:
+        return (0.0, 0.0)
+    return (float(getattr(point, "X", 0.0)), float(getattr(point, "Y", 0.0)))
+
+
+def _format_point_text(point):
+    if point is None:
+        return "未知"
+    return "({}, {})".format(
+        format_number(feet_to_mm(getattr(point, "X", 0.0))),
+        format_number(feet_to_mm(getattr(point, "Y", 0.0))),
+    )
+
+
+def _resolve_element_story_label(DB, levels, element_type, element):
+    if not levels:
+        return ""
+
+    target_level_id = get_element_level_int(DB, element)
+    if target_level_id <= 0:
+        return ""
+
+    for floor_number in range(1, get_story_count(levels) + 1):
+        level = resolve_story_level_by_category(levels, element_type, floor_number)
+        if getattr(getattr(level, "Id", None), "IntegerValue", -1) == target_level_id:
+            return "第 {} 层".format(floor_number)
+    return ""
 
 
 def _apply_collector_level_filter(DB, collector, level_id, element_type):

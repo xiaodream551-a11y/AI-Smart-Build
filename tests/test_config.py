@@ -36,6 +36,7 @@ def test_config_reads_user_file(monkeypatch, tmp_path):
     assert config.FRAME_API_TIMEOUT_MS == 60000
     assert config.API_RETRY_COUNT == 2
     assert config.API_RETRY_BACKOFF == 1.5
+    assert config.MAX_CONVERSATION_TURNS == 20
 
 
 def test_env_overrides_user_file(monkeypatch, tmp_path):
@@ -43,6 +44,7 @@ def test_env_overrides_user_file(monkeypatch, tmp_path):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "env-key")
     monkeypatch.setenv("AI_SMART_BUILD_DEEPSEEK_MODEL", "env-model")
     monkeypatch.setenv("API_TIMEOUT_MS", "45000")
+    monkeypatch.setenv("AI_SMART_BUILD_MAX_CONVERSATION_TURNS", "12")
 
     _write_user_config(tmp_path, {
         "DEEPSEEK_API_KEY": "file-key",
@@ -54,6 +56,7 @@ def test_env_overrides_user_file(monkeypatch, tmp_path):
     assert config.DEEPSEEK_API_KEY == "env-key"
     assert config.DEEPSEEK_MODEL == "env-model"
     assert config.API_TIMEOUT_MS == 45000
+    assert config.MAX_CONVERSATION_TURNS == 12
 
 
 def test_config_falls_back_to_defaults(monkeypatch, tmp_path):
@@ -75,6 +78,7 @@ def test_config_falls_back_to_defaults(monkeypatch, tmp_path):
     assert config.FRAME_API_TIMEOUT_MS == 60000
     assert config.API_RETRY_COUNT == 2
     assert config.API_RETRY_BACKOFF == 1.5
+    assert config.MAX_CONVERSATION_TURNS == 20
 
 
 def test_timeout_config_reads_user_file(monkeypatch, tmp_path):

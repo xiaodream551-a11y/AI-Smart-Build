@@ -45,6 +45,7 @@ class FakeBuiltInParameter(object):
     LEVEL_PARAM = "LEVEL_PARAM"
     FLOOR_HEIGHTABOVELEVEL_PARAM = "FLOOR_HEIGHTABOVELEVEL_PARAM"
     Z_OFFSET_VALUE = "Z_OFFSET_VALUE"
+    HOST_AREA_COMPUTED = "HOST_AREA_COMPUTED"
 
 
 class FakeCategory(object):
@@ -78,36 +79,116 @@ class FakeParameter(object):
     def AsDouble(self):
         return float(self._value)
 
+    def AsString(self):
+        if self._value is None:
+            return None
+        return "{}".format(self._value)
+
     def Set(self, value):
         self._value = value
+
+
+class FakeXYZ(object):
+    """简化版 XYZ。"""
+
+    def __init__(self, x=0.0, y=0.0, z=0.0):
+        self.X = float(x)
+        self.Y = float(y)
+        self.Z = float(z)
+
+
+class FakeCurve(object):
+    """简化版 Curve。"""
+
+    def __init__(self, start, end):
+        self._points = [start, end]
+
+    def GetEndPoint(self, index):
+        return self._points[index]
+
+
+class FakePointLocation(object):
+    """简化版点位置。"""
+
+    def __init__(self, point):
+        self.Point = point
+
+
+class FakeCurveLocation(object):
+    """简化版线位置。"""
+
+    def __init__(self, curve):
+        self.Curve = curve
+
+
+class FakeElementType(object):
+    """简化版族类型。"""
+
+    def __init__(self, element_id, name="", lookup_params=None):
+        self.Id = FakeElementId(element_id)
+        self.Name = name
+        self._lookup_params = dict(lookup_params or {})
+        self.Document = None
+
+    def LookupParameter(self, name):
+        return self._lookup_params.get(name)
 
 
 class FakeElement(object):
     """简化版模型元素。"""
 
-    def __init__(self, element_id, category, level_id=None, params=None, name=None):
+    def __init__(
+        self,
+        element_id,
+        category,
+        level_id=None,
+        params=None,
+        lookup_params=None,
+        name=None,
+        location=None,
+        symbol=None,
+        type_id=None,
+        area=None,
+    ):
         self.Id = FakeElementId(element_id)
         self.category = category
         self.Category = FakeCategory(category, name=name)
         self.LevelId = FakeElementId(level_id) if level_id is not None else None
         self._params = dict(params or {})
+        self._lookup_params = dict(lookup_params or {})
+        self.Location = location
+        self.Symbol = symbol
+        self._type_id = FakeElementId(type_id) if type_id is not None else None
+        self.Area = area
+        self.Document = None
 
     def get_Parameter(self, builtin):
         return self._params.get(builtin)
+
+    def LookupParameter(self, name):
+        return self._lookup_params.get(name)
+
+    def GetTypeId(self):
+        return self._type_id
 
 
 class FakeDocument(object):
     """简化版 Revit Document。"""
 
-    def __init__(self, levels=None, elements=None):
+    def __init__(self, levels=None, elements=None, element_types=None):
         self.levels = list(levels or [])
         self.elements = list(elements or [])
+        self.element_types = list(element_types or [])
         self._by_id = {}
 
         for level in self.levels:
             self._by_id[level.Id.IntegerValue] = level
         for element in self.elements:
             self._by_id[element.Id.IntegerValue] = element
+            element.Document = self
+        for element_type in self.element_types:
+            self._by_id[element_type.Id.IntegerValue] = element_type
+            element_type.Document = self
 
     def GetElement(self, element_id):
         value = getattr(element_id, "IntegerValue", element_id)
@@ -196,6 +277,7 @@ FakeDB = types.SimpleNamespace(
     FamilySymbol=type("FamilySymbol", (), {}),
     FloorType=type("FloorType", (), {}),
     Structure=_FakeStructure(),
+    XYZ=FakeXYZ,
 )
 
 
@@ -254,6 +336,7 @@ def install_pyrevit_stub():
         WPFWindow=_FakeWPFWindow,
         ask_for_string=lambda *args, **kwargs: None,
         pick_file=lambda *args, **kwargs: None,
+        save_file=lambda *args, **kwargs: None,
         alert=lambda *args, **kwargs: None,
         ProgressBar=_NullTransaction,
         SelectFromList=types.SimpleNamespace(show=lambda *args, **kwargs: None),

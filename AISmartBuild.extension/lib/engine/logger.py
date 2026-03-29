@@ -26,7 +26,7 @@ class OperationLog(object):
         (("create_floor", "create_slab"), "创建", "块板"),
         (("modify_element", "batch_modify_by_filter"), "修改", "次"),
         (("delete_element", "batch_delete_by_filter"), "删除", "次"),
-        (("query_count",), "查询", "次"),
+        (("query_count", "query_detail", "query_summary"), "查询", "次"),
         (("skip_row",), "跳过", "行"),
     ]
 

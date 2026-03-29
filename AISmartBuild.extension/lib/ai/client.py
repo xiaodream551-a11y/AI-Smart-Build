@@ -34,8 +34,12 @@ from config import (
     DEEPSEEK_API_KEY,
     DEEPSEEK_API_URL,
     DEEPSEEK_MODEL,
+    MAX_CONVERSATION_TURNS as CONFIG_MAX_CONVERSATION_TURNS,
 )
 from ai.prompt import SYSTEM_PROMPT
+
+
+MAX_CONVERSATION_TURNS = CONFIG_MAX_CONVERSATION_TURNS
 
 
 def call_deepseek(messages, api_key=None, model=None, api_url=None, timeout_ms=None):
@@ -52,10 +56,15 @@ def call_deepseek(messages, api_key=None, model=None, api_url=None, timeout_ms=N
 class DeepSeekClient(object):
     """DeepSeek API 客户端"""
 
+    MAX_CONVERSATION_TURNS = MAX_CONVERSATION_TURNS
+
     def __init__(self, api_key=None, model=None, api_url=None):
         self.api_url = api_url or DEEPSEEK_API_URL
         self.api_key = api_key or DEEPSEEK_API_KEY
         self.model = model or DEEPSEEK_MODEL
+        self.max_conversation_turns = self._normalize_max_conversation_turns(
+            MAX_CONVERSATION_TURNS
+        )
         self.conversation = [
             {"role": "system", "content": SYSTEM_PROMPT}
         ]
@@ -70,6 +79,7 @@ class DeepSeekClient(object):
             大模型回复的文本（应为 JSON 字符串）
         """
         self.conversation.append({"role": "user", "content": user_message})
+        self._trim_conversation_history(preserve_pending_user=True)
 
         try:
             payload = self._build_payload(self.conversation)
@@ -84,6 +94,7 @@ class DeepSeekClient(object):
             reply = result["choices"][0]["message"]["content"]
 
             self.conversation.append({"role": "assistant", "content": reply})
+            self._trim_conversation_history()
             return reply
 
         except WebException as err:
@@ -167,6 +178,15 @@ class DeepSeekClient(object):
             return 0
         if normalized < 0:
             return 0
+        return normalized
+
+    def _normalize_max_conversation_turns(self, turn_count):
+        try:
+            normalized = int(turn_count)
+        except (TypeError, ValueError):
+            return 20
+        if normalized <= 0:
+            return 20
         return normalized
 
     def _normalize_retry_backoff(self, retry_backoff):
@@ -291,6 +311,28 @@ class DeepSeekClient(object):
             return
 
         self.conversation.pop()
+
+    def _trim_conversation_history(self, preserve_pending_user=False):
+        if len(self.conversation) <= 1:
+            return
+
+        system_message = self.conversation[0]
+        history = list(self.conversation[1:])
+        pending_user = []
+
+        if preserve_pending_user and history and history[-1].get("role") == "user":
+            pending_user = [history.pop()]
+
+        max_history_messages = self.max_conversation_turns * 2
+        if len(history) <= max_history_messages:
+            self.conversation = [system_message] + history + pending_user
+            return
+
+        history = history[-max_history_messages:]
+        if history and history[0].get("role") == "assistant":
+            history = history[1:]
+
+        self.conversation = [system_message] + history + pending_user
 
     def _extract_error_message(self, response_data):
         if not isinstance(response_data, dict):

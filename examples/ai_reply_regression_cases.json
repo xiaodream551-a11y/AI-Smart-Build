@@ -222,5 +222,136 @@
       "top_floor": 3,
       "section": "500x500"
     }
+  },
+  {
+    "name": "batch_create_columns_array_dispatch",
+    "stories": 5,
+    "input": "[{\"action\":\"create_column\",\"params\":{\"x\":0,\"y\":0,\"base_floor\":1,\"top_floor\":2,\"section\":\"500x500\"}},{\"action\":\"create_column\",\"params\":{\"x\":6000,\"y\":0,\"base_floor\":1,\"top_floor\":2,\"section\":\"500x500\"}}]",
+    "expected_action": "batch",
+    "expected_params": {
+      "commands": [
+        {
+          "action": "create_column",
+          "params": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "action": "create_column",
+          "params": {
+            "x": 6000,
+            "y": 0
+          }
+        }
+      ]
+    },
+    "expected_dispatch_result_contains": "批量执行 2 条指令"
+  },
+  {
+    "name": "batch_markdown_mixed_dispatch",
+    "stories": 5,
+    "input": "下面是两条独立指令：\n\n```json\n[\n  {\"action\":\"create_beam\",\"params\":{\"start_x\":0,\"start_y\":0,\"end_x\":6000,\"end_y\":0,\"floor\":2,\"section\":\"300x600\"}},\n  {\"action\":\"create_slab\",\"params\":{\"boundary\":[[0,0],[6000,0],[6000,6000],[0,6000]],\"floor\":2}}\n]\n```",
+    "expected_action": "batch",
+    "expected_dispatch_result_contains": "2. 已在第 2 层创建楼板"
+  },
+  {
+    "name": "create_column_first_floor_alias_dispatch",
+    "stories": 5,
+    "input": "{\"action\":\"create_column\",\"params\":{\"x\":0,\"y\":0,\"floor\":\"首层\",\"section\":\"500\"}}",
+    "expected_action": "create_column",
+    "expected_params": {
+      "base_floor": 1,
+      "top_floor": 2,
+      "section": "500x500"
+    },
+    "expected_dispatch_result_contains": "已在 (0,0) 创建 500x500 柱，1 层到 2 层"
+  },
+  {
+    "name": "create_beam_third_floor_single_number_dispatch",
+    "stories": 5,
+    "input": "{\"action\":\"创建梁\",\"params\":{\"start_x\":0,\"start_y\":0,\"end_x\":6000,\"end_y\":0,\"floor\":\"三层\",\"section\":\"500\"}}",
+    "expected_action": "create_beam",
+    "expected_params": {
+      "floor": 3,
+      "section": "500x500"
+    },
+    "expected_dispatch_result_contains": "第 3 层"
+  },
+  {
+    "name": "generate_frame_with_first_floor_height_dispatch",
+    "stories": 5,
+    "input": "{\"action\":\"create_frame\",\"params\":{\"x_spans\":[6000,6000],\"y_spans\":[6000],\"floor_count\":3,\"height\":3600,\"first_floor_height\":4200,\"beam_section\":\"300x700\"}}",
+    "expected_action": "generate_frame",
+    "expected_params": {
+      "num_floors": 3,
+      "floor_height": 3600,
+      "first_floor_height": 4200,
+      "beam_section_x": "300x700",
+      "beam_section_y": "300x700"
+    },
+    "expected_dispatch_result_contains": "生成完成"
+  },
+  {
+    "name": "modify_section_chinese_alias_dispatch",
+    "stories": 5,
+    "input": "{\"action\":\"修改截面\",\"params\":{\"type\":\"柱\",\"story\":\"二层\",\"from_section\":\"400\",\"to_section\":\"500\"}}",
+    "expected_action": "modify_section",
+    "expected_params": {
+      "element_type": "column",
+      "floor": 2,
+      "old_section": "400x400",
+      "new_section": "500x500"
+    },
+    "expected_dispatch_result_contains": "已修改 1 根柱截面为 500x500"
+  },
+  {
+    "name": "delete_element_without_floor_dispatch",
+    "stories": 5,
+    "input": "{\"action\":\"delete_element\",\"params\":{\"element_type\":\"梁\"}}",
+    "expected_action": "delete_element",
+    "expected_params": {
+      "element_type": "beam"
+    },
+    "expected_dispatch_result_contains": "已删除 2 根梁"
+  },
+  {
+    "name": "query_count_by_floor_dispatch",
+    "stories": 5,
+    "input": "{\"action\":\"query_count\",\"params\":{\"element_type\":\"beam\",\"floor\":2}}",
+    "expected_action": "query_count",
+    "expected_params": {
+      "element_type": "beam",
+      "floor": 2
+    },
+    "expected_dispatch_result_contains": "当前模型第 2 层共有 1 个梁构件"
+  },
+  {
+    "name": "unknown_action_dispatch",
+    "stories": 5,
+    "input": "{\"action\":\"do_magic\",\"params\":{\"target\":\"all\"}}",
+    "expected_action": "do_magic",
+    "expected_dispatch_result_contains": "不支持的操作类型: do_magic"
+  },
+  {
+    "name": "explanation_markdown_codeblock_dispatch",
+    "stories": 5,
+    "input": "我会先解析需求，再执行如下建模指令。\n\n```json\n{\"action\":\"create_slab\",\"params\":{\"boundary\":[[0,0],[9000,0],[9000,6000],[0,6000]],\"floor\":2}}\n```",
+    "expected_action": "create_slab",
+    "expected_params": {
+      "floor": 2
+    },
+    "expected_dispatch_result_contains": "已在第 2 层创建楼板"
+  },
+  {
+    "name": "pure_json_query_columns_dispatch",
+    "stories": 5,
+    "input": "{\"action\":\"query_count\",\"params\":{\"element_type\":\"column\",\"floor\":\"首层\"}}",
+    "expected_action": "query_count",
+    "expected_params": {
+      "element_type": "column",
+      "floor": 1
+    },
+    "expected_dispatch_result_contains": "当前模型第 1 层共有 1 个柱构件"
   }
 ]

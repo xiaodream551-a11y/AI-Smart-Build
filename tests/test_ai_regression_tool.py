@@ -88,3 +88,46 @@ def test_evaluate_case_accepts_short_case_format():
     assert result["name"] == "short-format"
     assert result["command"]["action"] == "create_beam"
     assert result["command"]["params"]["floor"] == 2
+
+
+def test_evaluate_case_supports_dispatch_result_check():
+    result = regression_tool.evaluate_case({
+        "name": "dispatch-check",
+        "stories": 5,
+        "input": "{\"action\":\"query_count\",\"params\":{\"element_type\":\"beam\",\"floor\":2}}",
+        "expected_action": "query_count",
+        "expected_params": {
+            "element_type": "beam",
+            "floor": 2,
+        },
+        "expected_dispatch_result_contains": "当前模型第 2 层共有 1 个梁构件",
+    })
+
+    assert result["name"] == "dispatch-check"
+    assert "dispatch_result" in result
+    assert "当前模型第 2 层共有 1 个梁构件" in result["dispatch_result"]
+
+
+def test_main_prints_all_passed_when_no_failure(monkeypatch, capsys):
+    monkeypatch.setattr(
+        regression_tool,
+        "parse_args",
+        lambda: type("Args", (), {"cases": "unused.json"})()
+    )
+    monkeypatch.setattr(
+        regression_tool,
+        "load_cases",
+        lambda _path: [{
+            "name": "pass-case",
+            "stories": 5,
+            "input": "{\"action\":\"query_count\",\"params\":{\"element_type\":\"beam\",\"floor\":2}}",
+            "expected_action": "query_count",
+            "expected_dispatch_result_contains": "当前模型第 2 层共有 1 个梁构件",
+        }]
+    )
+
+    exit_code = regression_tool.main()
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "all passed" in captured.out

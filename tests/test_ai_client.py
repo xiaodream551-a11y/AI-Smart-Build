@@ -214,3 +214,83 @@ def test_wait_before_retry_prints_and_sleeps(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert "正在重试第 2 次..." in captured.out
     assert sleep_calls == [4.0]
+
+
+def test_chat_trims_conversation_history_when_exceeding_limit(monkeypatch):
+    monkeypatch.setattr(client_module, "MAX_CONVERSATION_TURNS", 2)
+    client = DeepSeekClient(api_key="test-key")
+    replies = {"count": 0}
+
+    def fake_http_post(payload, timeout_ms=None):
+        replies["count"] += 1
+        return json.dumps({
+            "choices": [
+                {"message": {"content": "{\"action\":\"query_count\",\"params\":{\"element_type\":\"column\"}}"}}
+            ]
+        })
+
+    monkeypatch.setattr(client, "_http_post", fake_http_post)
+
+    for index in range(5):
+        client.chat("消息{}".format(index + 1))
+
+    assert replies["count"] == 5
+    assert client.conversation[0]["role"] == "system"
+    assert client.conversation[0]["content"] == client_module.SYSTEM_PROMPT
+    assert len(client.conversation) == 5
+    assert [item["content"] for item in client.conversation[1:]] == [
+        "消息4",
+        "{\"action\":\"query_count\",\"params\":{\"element_type\":\"column\"}}",
+        "消息5",
+        "{\"action\":\"query_count\",\"params\":{\"element_type\":\"column\"}}",
+    ]
+
+
+def test_chat_keeps_system_prompt_first_after_trim(monkeypatch):
+    monkeypatch.setattr(client_module, "MAX_CONVERSATION_TURNS", 1)
+    client = DeepSeekClient(api_key="test-key")
+
+    monkeypatch.setattr(
+        client,
+        "_http_post",
+        lambda payload, timeout_ms=None: json.dumps({
+            "choices": [
+                {"message": {"content": "{\"action\":\"query_count\",\"params\":{\"element_type\":\"beam\"}}"}}
+            ]
+        })
+    )
+
+    client.chat("第一轮")
+    client.chat("第二轮")
+    client.chat("第三轮")
+
+    assert client.conversation[0]["role"] == "system"
+    assert client.conversation[1]["role"] == "user"
+    assert client.conversation[1]["content"] == "第三轮"
+
+
+def test_chat_does_not_trim_when_not_exceeding_limit(monkeypatch):
+    monkeypatch.setattr(client_module, "MAX_CONVERSATION_TURNS", 3)
+    client = DeepSeekClient(api_key="test-key")
+
+    monkeypatch.setattr(
+        client,
+        "_http_post",
+        lambda payload, timeout_ms=None: json.dumps({
+            "choices": [
+                {"message": {"content": "{\"action\":\"query_count\",\"params\":{\"element_type\":\"slab\"}}"}}
+            ]
+        })
+    )
+
+    client.chat("一次")
+    client.chat("两次")
+
+    assert len(client.conversation) == 5
+    assert [item["role"] for item in client.conversation] == [
+        "system",
+        "user",
+        "assistant",
+        "user",
+        "assistant",
+    ]

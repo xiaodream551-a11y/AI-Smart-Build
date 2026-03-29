@@ -102,6 +102,11 @@ API_RETRY_BACKOFF = _read_float_config(
     1.5,
     aliases=["AI_SMART_BUILD_API_RETRY_BACKOFF"]
 )
+MAX_CONVERSATION_TURNS = _read_int_config(
+    "MAX_CONVERSATION_TURNS",
+    20,
+    aliases=["AI_SMART_BUILD_MAX_CONVERSATION_TURNS"]
+)
 
 # ============================================================
 # Revit 默认参数

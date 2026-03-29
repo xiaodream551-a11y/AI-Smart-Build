@@ -7,12 +7,104 @@ import pytest
 
 from tools.offline_runtime import (
     FakeBuiltInCategory,
+    FakeCurve,
+    FakeCurveLocation,
     FakeDocument,
     FakeElement,
+    FakeElementType,
+    FakePointLocation,
+    FakeXYZ,
     make_story_levels,
 )
 
 from ai import parser
+
+
+def _mm_to_feet(value_mm):
+    return float(value_mm) / 304.8
+
+
+def _make_point_location(x_mm, y_mm):
+    return FakePointLocation(FakeXYZ(_mm_to_feet(x_mm), _mm_to_feet(y_mm), 0))
+
+
+def _make_curve_location(start_x_mm, start_y_mm, end_x_mm, end_y_mm):
+    return FakeCurveLocation(FakeCurve(
+        FakeXYZ(_mm_to_feet(start_x_mm), _mm_to_feet(start_y_mm), 0),
+        FakeXYZ(_mm_to_feet(end_x_mm), _mm_to_feet(end_y_mm), 0),
+    ))
+
+
+def _make_query_test_doc():
+    levels = make_story_levels(5)
+    column_500 = FakeElementType(9001, name="500x500")
+    column_600 = FakeElementType(9002, name="600x600")
+    beam_300x600 = FakeElementType(9003, name="300x600")
+    beam_300x700 = FakeElementType(9004, name="300x700")
+
+    elements = [
+        FakeElement(
+            301,
+            FakeBuiltInCategory.OST_StructuralColumns,
+            level_id=2,
+            name="柱",
+            location=_make_point_location(0, 0),
+            symbol=column_500,
+        ),
+        FakeElement(
+            302,
+            FakeBuiltInCategory.OST_StructuralColumns,
+            level_id=2,
+            name="柱",
+            location=_make_point_location(6000, 0),
+            symbol=column_500,
+        ),
+        FakeElement(
+            303,
+            FakeBuiltInCategory.OST_StructuralColumns,
+            level_id=2,
+            name="柱",
+            location=_make_point_location(0, 6000),
+            symbol=column_600,
+        ),
+        FakeElement(
+            304,
+            FakeBuiltInCategory.OST_StructuralColumns,
+            level_id=3,
+            name="柱",
+            location=_make_point_location(0, 12000),
+            symbol=column_500,
+        ),
+        FakeElement(
+            401,
+            FakeBuiltInCategory.OST_StructuralFraming,
+            level_id=3,
+            name="梁",
+            location=_make_curve_location(0, 0, 6000, 0),
+            symbol=beam_300x600,
+        ),
+        FakeElement(
+            402,
+            FakeBuiltInCategory.OST_StructuralFraming,
+            level_id=4,
+            name="梁",
+            location=_make_curve_location(0, 6000, 6000, 6000),
+            symbol=beam_300x700,
+        ),
+        FakeElement(
+            501,
+            FakeBuiltInCategory.OST_Floors,
+            level_id=3,
+            name="板",
+            area=36.0 / (0.3048 ** 2),
+        ),
+    ]
+    doc = FakeDocument(
+        levels=levels,
+        elements=elements,
+        element_types=[column_500, column_600, beam_300x600, beam_300x700],
+    )
+    return levels, doc
 
 
 def test_parse_command_from_markdown_code_block():
@@ -384,6 +476,97 @@ def test_query_count_accepts_chinese_element_type():
     }, levels)
 
     assert result == "当前模型第 1 层共有 1 个柱构件"
+
+
+def test_parse_command_supports_query_detail_aliases():
+    command = parser.parse_command(
+        '{"action":"查询详情","params":{"构件类型":"柱子","楼层":"二层","截面":"500"}}'
+    )
+
+    assert command["action"] == "query_detail"
+    assert command["params"]["element_type"] == "column"
+    assert command["params"]["floor"] == 2
+    assert command["params"]["section"] == "500x500"
+
+
+def test_query_detail_filters_by_floor_and_section():
+    levels, doc = _make_query_test_doc()
+
+    result = parser.dispatch_command(doc, {
+        "action": "query_detail",
+        "params": {
+            "element_type": "column",
+            "floor": 2,
+            "section": "500",
+        },
+    }, levels)
+
+    assert result.startswith("第 2 层共有 2 根 500x500 柱：")
+    assert "1. ID=301, 位置 (0, 0), 楼层 第 2 层, 截面 500x500" in result
+    assert "2. ID=302, 位置 (6000, 0), 楼层 第 2 层, 截面 500x500" in result
+    assert "ID=303" not in result
+    assert "ID=304" not in result
+
+
+def test_query_detail_returns_empty_message_when_no_match():
+    levels, doc = _make_query_test_doc()
+
+    result = parser.dispatch_command(doc, {
+        "action": "query_detail",
+        "params": {
+            "element_type": "column",
+            "floor": 4,
+            "section": "700",
+        },
+    }, levels)
+
+    assert result == "第 4 层未找到 700x700 柱"
+
+
+def test_query_detail_lists_beam_endpoints():
+    levels, doc = _make_query_test_doc()
+
+    result = parser.dispatch_command(doc, {
+        "action": "query_detail",
+        "params": {
+            "element_type": "beam",
+            "floor": 2,
+        },
+    }, levels)
+
+    assert result.startswith("第 2 层共有 1 根梁：")
+    assert "ID=401, 起点 (0, 0), 终点 (6000, 0), 楼层 第 2 层, 截面 300x600" in result
+
+
+def test_query_summary_reports_model_statistics():
+    levels, doc = _make_query_test_doc()
+
+    result = parser.dispatch_command(doc, {
+        "action": "query_summary",
+        "params": {},
+    }, levels)
+
+    assert result.startswith("模型统计：")
+    assert "标高：6 个（±0.000 ~ 屋面）" in result
+    assert "柱：4 根（500x500: 3, 600x600: 1）" in result
+    assert "梁：2 根（300x600: 1, 300x700: 1）" in result
+    assert "板：1 块" in result
+
+
+def test_query_summary_accepts_chinese_floor_alias():
+    levels, doc = _make_query_test_doc()
+
+    result = parser.dispatch_command(doc, {
+        "action": "模型统计",
+        "params": {
+            "楼层": "二层",
+        },
+    }, levels)
+
+    assert result.startswith("第 2 层模型统计：")
+    assert "柱：3 根（500x500: 2, 600x600: 1）" in result
+    assert "梁：1 根（300x600: 1）" in result
+    assert "板：1 块" in result
 
 
 def test_exec_delete_element_without_floor_uses_full_delete_path(monkeypatch):
