@@ -104,6 +104,26 @@ _ELEMENT_TYPE_ALIASES = {
 }
 
 
+def strip_markdown_json_blocks(text):
+    """Strip markdown code block wrappers from *text* and return the inner content.
+
+    Handles:
+    - ````` ```json\\n...\\n``` `````
+    - ````` ```\\n...\\n``` `````
+    - Leading/trailing whitespace
+    - Multiple consecutive code blocks (contents are joined with newlines)
+
+    If *text* contains no code block markers it is returned stripped but
+    otherwise unchanged.
+    """
+    stripped = text.strip()
+    # Match all fenced code blocks (with optional ``json`` language tag).
+    blocks = re.findall(r"```(?:json)?\s*\n?(.*?)\n?\s*```", stripped, re.DOTALL)
+    if blocks:
+        return "\n".join(block.strip() for block in blocks)
+    return stripped
+
+
 def parse_command(reply_text):
     """
     Extract a JSON command from the LLM reply text.
@@ -117,7 +137,9 @@ def parse_command(reply_text):
     Raises:
         ValueError: If no valid JSON command can be extracted.
     """
-    text = reply_text.strip()
+    # Pre-process: strip markdown code block wrappers so that
+    # ``json.loads`` sees clean JSON on the first attempt.
+    text = strip_markdown_json_blocks(reply_text)
 
     # Attempt direct JSON parsing
     try:
@@ -126,16 +148,6 @@ def parse_command(reply_text):
         pass
     else:
         return _normalize_parsed_command_payload(payload)
-
-    # Attempt to extract from a markdown code block
-    match = re.search(r"```(?:json)?\s*\n?(.*?)\n?\s*```", text, re.DOTALL)
-    if match:
-        try:
-            payload = json.loads(match.group(1).strip())
-        except (ValueError, TypeError):
-            pass
-        else:
-            return _normalize_parsed_command_payload(payload)
 
     # Attempt to extract the first [...] or {...}
     for pattern in (r"\[.*\]", r"\{.*\}"):

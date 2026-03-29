@@ -139,6 +139,7 @@ class DeepSeekClient(object):
             "model": self.model,
             "messages": list(messages or []),
             "temperature": 0.1,
+            "response_format": {"type": "json_object"},
         }, ensure_ascii=False)
 
     def _http_post(self, payload, timeout_ms=None):

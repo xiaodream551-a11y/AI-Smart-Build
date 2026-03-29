@@ -269,6 +269,15 @@ def test_chat_keeps_system_prompt_first_after_trim(monkeypatch):
     assert client.conversation[1]["content"] == "第三轮"
 
 
+def test_build_payload_includes_response_format():
+    client = DeepSeekClient(api_key="test-key")
+    messages = [{"role": "user", "content": "hello"}]
+    payload = json.loads(client._build_payload(messages))
+
+    assert "response_format" in payload
+    assert payload["response_format"] == {"type": "json_object"}
+
+
 def test_chat_does_not_trim_when_not_exceeding_limit(monkeypatch):
     monkeypatch.setattr(client_module, "MAX_CONVERSATION_TURNS", 3)
     client = DeepSeekClient(api_key="test-key")

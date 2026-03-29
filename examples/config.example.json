@@ -1,5 +1,9 @@
 {
+  "_comment": "DEEPSEEK_* and LLM_* are aliases; DEEPSEEK_* takes precedence if both are set",
   "DEEPSEEK_API_KEY": "your-deepseek-api-key",
   "DEEPSEEK_MODEL": "deepseek-chat",
-  "DEEPSEEK_API_URL": "https://api.deepseek.com/v1/chat/completions"
+  "DEEPSEEK_API_URL": "https://api.deepseek.com/v1/chat/completions",
+  "LLM_API_KEY": "or-set-this-if-using-a-different-provider",
+  "LLM_MODEL": "provider-model-name",
+  "LLM_API_URL": "https://api.other-provider.com/v1/chat/completions"
 }

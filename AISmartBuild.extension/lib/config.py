@@ -70,17 +70,17 @@ VERSION = "0.1.0"
 DEEPSEEK_API_URL = _read_config(
     "DEEPSEEK_API_URL",
     "https://api.deepseek.com/v1/chat/completions",
-    aliases=["AI_SMART_BUILD_DEEPSEEK_API_URL"]
+    aliases=["AI_SMART_BUILD_DEEPSEEK_API_URL", "LLM_API_URL"],
 )
 DEEPSEEK_API_KEY = _read_config(
     "DEEPSEEK_API_KEY",
     "",
-    aliases=["AI_SMART_BUILD_DEEPSEEK_API_KEY"]
+    aliases=["AI_SMART_BUILD_DEEPSEEK_API_KEY", "LLM_API_KEY"],
 )
 DEEPSEEK_MODEL = _read_config(
     "DEEPSEEK_MODEL",
     "deepseek-chat",
-    aliases=["AI_SMART_BUILD_DEEPSEEK_MODEL"]
+    aliases=["AI_SMART_BUILD_DEEPSEEK_MODEL", "LLM_MODEL"],
 )
 API_TIMEOUT_MS = _read_int_config(
     "API_TIMEOUT_MS",
@@ -107,6 +107,38 @@ MAX_CONVERSATION_TURNS = _read_int_config(
     20,
     aliases=["AI_SMART_BUILD_MAX_CONVERSATION_TURNS"]
 )
+
+
+
+# ============================================================
+# Startup config validation
+# ============================================================
+
+def validate_config():
+    """Validate critical configuration values.
+
+    Returns a list of warning strings. An empty list means all checks passed.
+    This function never raises exceptions or blocks execution.
+    """
+    warnings = []
+
+    # 1. API key must be non-empty and not the placeholder
+    if not DEEPSEEK_API_KEY or DEEPSEEK_API_KEY.strip() == "":
+        warnings.append(u"API key 未设置，请在配置文件或环境变量中设置 DEEPSEEK_API_KEY 或 LLM_API_KEY")
+    elif DEEPSEEK_API_KEY == "your-deepseek-api-key":
+        warnings.append(u"API key 仍为占位符，请替换为实际的 API 密钥")
+
+    # 2. API URL must look like a valid HTTP(S) URL
+    url = DEEPSEEK_API_URL.strip() if DEEPSEEK_API_URL else ""
+    if not url.startswith("http://") and not url.startswith("https://"):
+        warnings.append(u"API URL 无效，必须以 http:// 或 https:// 开头")
+
+    # 3. Model name must not be empty
+    if not DEEPSEEK_MODEL or DEEPSEEK_MODEL.strip() == "":
+        warnings.append(u"模型名称未设置，请在配置文件或环境变量中设置 DEEPSEEK_MODEL 或 LLM_MODEL")
+
+    return warnings
+
 
 # ============================================================
 # Revit default parameters

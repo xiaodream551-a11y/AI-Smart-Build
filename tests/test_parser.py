@@ -659,3 +659,60 @@ def test_apply_collector_level_filter_falls_back_to_parameter_filter():
         "param-filter",
         ("rule", ("provider", ("eid", 10)), "equals", "L3"),
     )
+
+
+# ---------------------------------------------------------------------------
+# strip_markdown_json_blocks tests
+# ---------------------------------------------------------------------------
+
+class TestStripMarkdownJsonBlocks(object):
+    def test_strips_json_code_block(self):
+        text = '```json\n{"action":"create_column","params":{"x":0}}\n```'
+        assert parser.strip_markdown_json_blocks(text) == '{"action":"create_column","params":{"x":0}}'
+
+    def test_strips_plain_code_block(self):
+        text = '```\n{"action":"create_beam","params":{}}\n```'
+        assert parser.strip_markdown_json_blocks(text) == '{"action":"create_beam","params":{}}'
+
+    def test_strips_leading_trailing_whitespace(self):
+        text = '  \n```json\n{"a":1}\n```\n  '
+        assert parser.strip_markdown_json_blocks(text) == '{"a":1}'
+
+    def test_handles_multiple_code_blocks(self):
+        text = '```json\n{"a":1}\n```\nsome text\n```json\n{"b":2}\n```'
+        result = parser.strip_markdown_json_blocks(text)
+        assert '{"a":1}' in result
+        assert '{"b":2}' in result
+
+    def test_returns_plain_text_unchanged(self):
+        text = '{"action":"query_count","params":{}}'
+        assert parser.strip_markdown_json_blocks(text) == text
+
+    def test_returns_stripped_text_without_code_blocks(self):
+        text = '  {"action":"query_count"}  '
+        assert parser.strip_markdown_json_blocks(text) == '{"action":"query_count"}'
+
+
+class TestParseCommandMarkdownStripping(object):
+    """Verify that parse_command correctly handles markdown-wrapped JSON."""
+
+    def test_json_code_block_only(self):
+        text = '```json\n{"action":"create_column","params":{"x":0,"y":0}}\n```'
+        cmd = parser.parse_command(text)
+        assert cmd["action"] == "create_column"
+        assert cmd["params"]["x"] == 0
+
+    def test_plain_code_block_only(self):
+        text = '```\n{"action":"create_beam","params":{"start_x":0,"start_y":0,"end_x":6000,"end_y":0,"floor":1,"section":"300x600"}}\n```'
+        cmd = parser.parse_command(text)
+        assert cmd["action"] == "create_beam"
+
+    def test_code_block_with_surrounding_text(self):
+        text = u"AI \u8bf4\u660e\u6587\u5b57\n```json\n{\"action\":\"query_count\",\"params\":{\"element_type\":\"column\"}}\n```\n\u540e\u7eed\u8bf4\u660e"
+        cmd = parser.parse_command(text)
+        assert cmd["action"] == "query_count"
+
+    def test_code_block_with_extra_whitespace(self):
+        text = '\n\n  ```json\n  {"action":"query_summary","params":{}}  \n  ```\n\n'
+        cmd = parser.parse_command(text)
+        assert cmd["action"] == "query_summary"
