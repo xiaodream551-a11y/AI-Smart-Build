@@ -53,7 +53,7 @@
 }
 ```
 
-支持的 action：create_column, create_beam, create_slab, modify_section, delete_element, generate_frame, query_count
+支持的 action：create_column, create_beam, create_slab, modify_section, delete_element, generate_frame, query_count, query_detail, query_summary
 
 ## 开发规范
 
@@ -61,6 +61,14 @@
 - 代码注释可以用中文
 - 变量名、函数名使用英文（snake_case）
 - Revit API 操作必须在 Transaction 内执行
+
+## 开发约束
+
+- 所有新功能必须有离线测试（Mac 上能跑 `pytest`，不依赖 Revit 环境）
+- 新 action 必须同步更新以下 6 处：parser alias、recovery、logger、prompt、回归用例、dispatch 测试
+- `engine/` 下的函数不能直接 `from pyrevit import DB`，通过参数传入 DB（保证离线可测）
+- `parser.py` 和 `export.py` 共用的元素属性函数统一放在 `engine/element_utils.py`，禁止重复实现
+- 回归用例文件：`examples/ai_reply_regression_cases.json`，新增 action 必须补充对应用例
 
 ## 项目文件
 
