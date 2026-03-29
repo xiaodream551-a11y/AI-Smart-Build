@@ -1,12 +1,87 @@
 # -*- coding: utf-8 -*-
 """AI 智建 — 全局配置"""
 
+import io
+import json
+import os
+
+
+def _load_user_config():
+    """读取用户级配置文件"""
+    path = os.path.expanduser("~/.ai-smart-build/config.json")
+    if not os.path.exists(path):
+        return path, {}
+
+    try:
+        with io.open(path, "r", encoding="utf-8") as config_file:
+            data = json.load(config_file)
+        if isinstance(data, dict):
+            return path, data
+    except Exception:
+        pass
+
+    return path, {}
+
+
+def _read_config(key, default_value="", aliases=None):
+    aliases = aliases or []
+    for env_key in [key] + aliases:
+        env_value = os.environ.get(env_key)
+        if env_value:
+            return env_value
+
+    value = USER_CONFIG.get(key)
+    if value not in (None, ""):
+        return value
+
+    for alias in aliases:
+        value = USER_CONFIG.get(alias)
+        if value not in (None, ""):
+            return value
+
+    return default_value
+
+
+def _read_int_config(key, default_value, aliases=None):
+    aliases = aliases or []
+    value = _read_config(key, default_value, aliases=aliases)
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return int(default_value)
+
+
+USER_CONFIG_PATH, USER_CONFIG = _load_user_config()
+
 # ============================================================
-# DeepSeek API 配置（第三阶段启用）
+# DeepSeek API 配置
+# 优先级：环境变量 > ~/.ai-smart-build/config.json > 默认值
 # ============================================================
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
-DEEPSEEK_API_KEY = ""  # 在此填入你的 API Key
-DEEPSEEK_MODEL = "deepseek-chat"
+DEEPSEEK_API_URL = _read_config(
+    "DEEPSEEK_API_URL",
+    "https://api.deepseek.com/v1/chat/completions",
+    aliases=["AI_SMART_BUILD_DEEPSEEK_API_URL"]
+)
+DEEPSEEK_API_KEY = _read_config(
+    "DEEPSEEK_API_KEY",
+    "",
+    aliases=["AI_SMART_BUILD_DEEPSEEK_API_KEY"]
+)
+DEEPSEEK_MODEL = _read_config(
+    "DEEPSEEK_MODEL",
+    "deepseek-chat",
+    aliases=["AI_SMART_BUILD_DEEPSEEK_MODEL"]
+)
+API_TIMEOUT_MS = _read_int_config(
+    "API_TIMEOUT_MS",
+    30000,
+    aliases=["AI_SMART_BUILD_API_TIMEOUT_MS"]
+)
+FRAME_API_TIMEOUT_MS = _read_int_config(
+    "FRAME_API_TIMEOUT_MS",
+    60000,
+    aliases=["AI_SMART_BUILD_FRAME_API_TIMEOUT_MS"]
+)
 
 # ============================================================
 # Revit 默认参数

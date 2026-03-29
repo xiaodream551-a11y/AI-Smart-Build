@@ -3,6 +3,11 @@
 
 from pyrevit import DB
 
+try:
+    string_types = (basestring,)
+except NameError:
+    string_types = (str,)
+
 # ============================================================
 # 单位转换  (Revit 内部单位 = 英尺)
 # ============================================================
@@ -179,6 +184,99 @@ def find_level_by_elevation(doc, elevation_feet, tolerance=0.01):
         if abs(level.Elevation - elevation_feet) < tolerance:
             return level
     return None
+
+
+def get_sorted_levels(doc):
+    """获取按高程排序后的所有标高"""
+    levels = list(DB.FilteredElementCollector(doc).OfClass(DB.Level))
+    levels.sort(key=lambda level: level.Elevation)
+    return levels
+
+
+def get_story_count(levels):
+    """根据标高列表计算可用层数"""
+    return max(len(levels) - 1, 0)
+
+
+def normalize_floor_number(value):
+    """将楼层值标准化为正整数，失败返回 None"""
+    if isinstance(value, string_types):
+        text = value.strip()
+        if not text:
+            return None
+        value = text
+
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+
+    if number <= 0:
+        return None
+    return number
+
+
+def resolve_floor_boundary_level(levels, floor_number):
+    """
+    按楼层边界编号解析标高
+    1 -> ±0.000, 2 -> F1, 3 -> F2 ...
+    """
+    floor_index = normalize_floor_number(floor_number)
+    if floor_index is None or floor_index > len(levels):
+        return None
+    return levels[floor_index - 1]
+
+
+def resolve_story_base_level(levels, floor_number):
+    """
+    按故事层号解析柱底标高
+    1 -> ±0.000, 2 -> F1 ...
+    """
+    floor_index = normalize_floor_number(floor_number)
+    story_count = get_story_count(levels)
+    if floor_index is None or floor_index > story_count:
+        return None
+    return levels[floor_index - 1]
+
+
+def resolve_story_framing_level(levels, floor_number):
+    """
+    按故事层号解析梁板所在标高
+    1 -> F1, 2 -> F2 ...
+    """
+    floor_index = normalize_floor_number(floor_number)
+    story_count = get_story_count(levels)
+    if floor_index is None or floor_index > story_count:
+        return None
+    return levels[floor_index]
+
+
+def is_column_category(category):
+    """判断类别是否属于柱。"""
+    if category == DB.BuiltInCategory.OST_StructuralColumns:
+        return True
+
+    if isinstance(category, string_types):
+        return category.strip().lower() in ("column", "columns", "柱")
+
+    return False
+
+
+def resolve_story_level_by_category(levels, category, floor_number):
+    """按类别语义解析故事层对应标高。"""
+    if is_column_category(category):
+        return resolve_story_base_level(levels, floor_number)
+    return resolve_story_framing_level(levels, floor_number)
+
+
+def list_story_floor_choices(levels, category):
+    """返回可选故事层列表，元素为 (floor_number, level)。"""
+    choices = []
+    for floor_number in range(1, get_story_count(levels) + 1):
+        level = resolve_story_level_by_category(levels, category, floor_number)
+        if level:
+            choices.append((floor_number, level))
+    return choices
 
 
 # ============================================================

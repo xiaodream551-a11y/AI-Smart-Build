@@ -2,7 +2,13 @@
 """构件修改与删除"""
 
 from pyrevit import DB
-from utils import mm_to_feet, parse_section
+from utils import (
+    get_sorted_levels,
+    mm_to_feet,
+    normalize_floor_number,
+    parse_section,
+    resolve_story_level_by_category,
+)
 
 try:
     string_types = (basestring,)
@@ -136,7 +142,7 @@ def batch_modify_by_filter(doc, category, floor_level, old_section, new_section)
         ):
             return "{}不支持批量截面修改".format(_get_category_label(cat, category))
 
-        level = _resolve_level(doc, floor_level)
+        level = _resolve_filter_level(doc, cat, floor_level)
         if not level:
             return "未找到标高: {}".format(floor_level)
 
@@ -201,7 +207,7 @@ def batch_delete_by_filter(doc, category, floor_level=None):
 
         level = None
         if floor_level is not None:
-            level = _resolve_level(doc, floor_level)
+            level = _resolve_filter_level(doc, cat, floor_level)
             if not level:
                 return "未找到标高: {}".format(floor_level)
 
@@ -500,12 +506,20 @@ def _resolve_level(doc, level_value):
     return None
 
 
+def _resolve_filter_level(doc, category, floor_level):
+    floor_index = normalize_floor_number(floor_level)
+    if floor_index is not None:
+        levels = get_sorted_levels(doc)
+        return resolve_story_level_by_category(levels, category, floor_index)
+
+    return _resolve_level(doc, floor_level)
+
+
 def _get_level_by_index(doc, floor_index):
     if floor_index <= 0:
         return None
 
-    levels = list(DB.FilteredElementCollector(doc).OfClass(DB.Level))
-    levels.sort(key=lambda item: item.Elevation)
+    levels = get_sorted_levels(doc)
     if floor_index > len(levels):
         return None
     return levels[floor_index - 1]

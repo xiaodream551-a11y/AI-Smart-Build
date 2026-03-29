@@ -5,27 +5,23 @@ __doc__ = "删除选中构件，或按楼层/类型批量删除"
 __title__ = "删除\n构件"
 __author__ = "AI智建"
 
-from pyrevit import revit, DB, forms, script
+from pyrevit import revit, forms, script
 
+from engine.logger import OperationLog, export_operation_log
 from engine.modify import delete_element, batch_delete_by_filter
+from utils import get_sorted_levels, list_story_floor_choices
 
 
 MODE_SINGLE = u"单个删除"
 MODE_BATCH = u"批量删除"
 
 
-class LevelOption(object):
+class FloorOption(object):
     """楼层选择项"""
 
-    def __init__(self, name, level=None):
+    def __init__(self, name, floor_number=None):
         self.Name = name
-        self.level = level
-
-
-def _get_levels(doc):
-    levels = list(DB.FilteredElementCollector(doc).OfClass(DB.Level))
-    levels.sort(key=lambda level: level.Elevation)
-    return levels
+        self.floor_number = floor_number
 
 
 def _pick_mode():
@@ -72,6 +68,12 @@ def _run_single_delete(doc):
 
 
 def _run_batch_delete(doc):
+    category_map = {
+        u"柱": "column",
+        u"梁": "beam",
+        u"板": "slab",
+    }
+
     category_text = forms.SelectFromList.show(
         [u"柱", u"梁", u"板"],
         title=u"选择批量删除的构件类别",
@@ -80,9 +82,8 @@ def _run_batch_delete(doc):
     if not category_text:
         return u"未选择构件类别"
 
-    level_options = [LevelOption(u"全部楼层")]
-    for level in _get_levels(doc):
-        level_options.append(LevelOption(level.Name, level))
+    level_options = [FloorOption(u"全部楼层")]
+    level_options.extend(_build_floor_options(doc, category_map[category_text]))
 
     selected_option = forms.SelectFromList.show(
         level_options,
@@ -93,15 +94,9 @@ def _run_batch_delete(doc):
     if not selected_option:
         return u"未选择楼层条件"
 
-    category_map = {
-        u"柱": "column",
-        u"梁": "beam",
-        u"板": "slab",
-    }
-
-    if selected_option.level:
-        confirm_text = u"确定要删除标高“{}”上的所有{}吗？".format(
-            selected_option.level.Name,
+    if selected_option.floor_number:
+        confirm_text = u"确定要删除第 {} 层的所有{}吗？".format(
+            selected_option.floor_number,
             category_text
         )
     else:
@@ -114,13 +109,26 @@ def _run_batch_delete(doc):
         return batch_delete_by_filter(
             doc,
             category_map[category_text],
-            selected_option.level
+            selected_option.floor_number
         )
+
+
+def _build_floor_options(doc, category):
+    return [
+        FloorOption(
+            u"第 {} 层（{}）".format(floor_number, level.Name),
+            floor_number=floor_number
+        )
+        for floor_number, level in list_story_floor_choices(
+            get_sorted_levels(doc), category
+        )
+    ]
 
 
 def main():
     doc = revit.doc
     logger = script.get_logger()
+    operation_log = OperationLog()
 
     try:
         mode = _pick_mode()
@@ -129,10 +137,19 @@ def main():
 
         if mode == MODE_SINGLE:
             result = _run_single_delete(doc)
+            operation_log.log("delete_element", result)
         else:
             result = _run_batch_delete(doc)
+            operation_log.log("batch_delete_by_filter", result)
 
-        forms.alert(result, title=u"AI 智建")
+        log_path = export_operation_log(operation_log, u"删除构件")
+        message = result
+        if log_path:
+            message += u"\n\n{}\n日志：{}".format(
+                operation_log.get_summary(),
+                log_path
+            )
+        forms.alert(message, title=u"AI 智建")
     except Exception as err:
         logger.exception(err)
         forms.alert(

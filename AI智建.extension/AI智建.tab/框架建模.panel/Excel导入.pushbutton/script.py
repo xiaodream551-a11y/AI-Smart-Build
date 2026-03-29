@@ -11,6 +11,8 @@ from pyrevit import revit, DB, forms, script
 
 from engine.column import create_column
 from engine.beam import create_beam
+from engine.logger import OperationLog, export_operation_log
+from utils import get_sorted_levels, resolve_story_base_level, resolve_story_framing_level
 
 try:
     string_types = (basestring,)
@@ -84,12 +86,6 @@ def _get_cell(row, index):
     return row[index]
 
 
-def _collect_levels(doc):
-    levels = list(DB.FilteredElementCollector(doc).OfClass(DB.Level))
-    levels.sort(key=lambda level: level.Elevation)
-    return levels
-
-
 def _parse_headers(ws):
     header_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), None)
     if not header_row:
@@ -131,7 +127,9 @@ def _parse_row(row_index, row, header_map, levels):
         raise ValueError(u"截面为空")
 
     if type_value in (u"柱", "column", "columns"):
-        if floor >= len(levels):
+        base_level = resolve_story_base_level(levels, floor)
+        top_level = resolve_story_framing_level(levels, floor)
+        if not base_level or not top_level:
             raise ValueError(u"楼层 {} 超出当前标高范围".format(floor))
 
         return {
@@ -139,13 +137,14 @@ def _parse_row(row_index, row, header_map, levels):
             "kind": "column",
             "x": _parse_float(_get_cell(row, header_map["x"]), u"X(mm)"),
             "y": _parse_float(_get_cell(row, header_map["y"]), u"Y(mm)"),
-            "base_level": levels[floor - 1],
-            "top_level": levels[floor],
+            "base_level": base_level,
+            "top_level": top_level,
             "section": section,
         }
 
     if type_value in (u"梁", "beam", "beams"):
-        if floor >= len(levels):
+        level = resolve_story_framing_level(levels, floor)
+        if not level:
             raise ValueError(u"楼层 {} 超出当前标高范围".format(floor))
 
         start_x, start_y = _parse_point(_get_cell(row, header_map["x"]), u"X(mm)")
@@ -157,29 +156,31 @@ def _parse_row(row_index, row, header_map, levels):
             "start_y": start_y,
             "end_x": end_x,
             "end_y": end_y,
-            "level": levels[floor],
+            "level": level,
             "section": section,
         }
 
     raise ValueError(u"不支持的类型: {}".format(type_value or u"<空>"))
 
 
-def _log_skip(output, logger, row_index, reason, skipped_logs):
+def _log_skip(output, logger, operation_log, row_index, reason, skipped_logs):
     message = u"第 {} 行已跳过：{}".format(row_index, reason)
     skipped_logs.append(message)
     logger.warning(message)
+    operation_log.log("skip_row", message)
 
 
 def main():
     doc = revit.doc
     output = script.get_output()
     logger = script.get_logger()
+    operation_log = OperationLog()
 
     file_path = forms.pick_file(file_ext='xlsx')
     if not file_path:
         script.exit()
 
-    levels = _collect_levels(doc)
+    levels = get_sorted_levels(doc)
     if len(levels) < 2:
         forms.alert(u"当前模型标高不足，至少需要 2 个标高。", title=u"AI 智建")
         script.exit()
@@ -205,7 +206,10 @@ def main():
                 operations.append(_parse_row(row_index, row, header_map, levels))
             except Exception as err:
                 skipped_count += 1
-                _log_skip(output, logger, row_index, _to_text(err), skipped_logs)
+                _log_skip(
+                    output, logger, operation_log,
+                    row_index, _to_text(err), skipped_logs
+                )
     except Exception as err:
         forms.alert(u"Excel 读取失败：{}".format(_to_text(err)), title=u"AI 智建")
         script.exit()
@@ -238,17 +242,34 @@ def main():
                 success_count += 1
             except Exception as err:
                 skipped_count += 1
-                _log_skip(output, logger, item["row"], _to_text(err), skipped_logs)
+                _log_skip(
+                    output, logger, operation_log,
+                    item["row"], _to_text(err), skipped_logs
+                )
+                continue
+
+            operation_log.log(
+                "create_{}".format(item["kind"]),
+                u"第 {} 行创建{}".format(
+                    item["row"],
+                    u"柱" if item["kind"] == "column" else u"梁"
+                )
+            )
 
     if skipped_logs:
         output.print_md(u"### 跳过记录")
         for message in skipped_logs:
             output.print_md(u"- {}".format(message))
 
-    forms.alert(
-        u"成功导入 {} 个构件，跳过 {} 行".format(success_count, skipped_count),
-        title=u"AI 智建"
-    )
+    output.print_md(u"### {}".format(operation_log.get_summary()))
+    log_path = export_operation_log(operation_log, u"Excel导入")
+    if log_path:
+        output.print_md(u"- 日志已导出：`{}`".format(log_path))
+
+    message = u"成功导入 {} 个构件，跳过 {} 行".format(success_count, skipped_count)
+    if log_path:
+        message += u"\n\n日志：{}".format(log_path)
+    forms.alert(message, title=u"AI 智建")
 
 
 if __name__ == "__main__":

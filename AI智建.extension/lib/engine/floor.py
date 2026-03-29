@@ -33,11 +33,17 @@ def create_floor(doc, boundary_points_mm, level, floor_type_name=None):
         line = DB.Line.CreateBound(p1, p2)
         curve_loop.Append(line)
 
-    # Revit 2024 API: Floor.Create 需要 IList<CurveLoop>
-    curve_loops = List[DB.CurveLoop]()
-    curve_loops.Add(curve_loop)
-
-    floor = DB.Floor.Create(doc, curve_loops, floor_type.Id, level.Id)
+    # Revit 2022+ 使用 Floor.Create，旧版本使用 NewFloor
+    try:
+        curve_loops = List[DB.CurveLoop]()
+        curve_loops.Add(curve_loop)
+        floor = DB.Floor.Create(doc, curve_loops, floor_type.Id, level.Id)
+    except AttributeError:
+        # Revit 2021 及更早版本：使用 doc.Create.NewFloor
+        curve_array = DB.CurveArray()
+        for curve in curve_loop:
+            curve_array.Append(curve)
+        floor = doc.Create.NewFloor(curve_array, floor_type, level, False)
     return floor
 
 

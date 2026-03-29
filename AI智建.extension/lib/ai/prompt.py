@@ -35,8 +35,8 @@ params: element_type("column"/"beam"/"slab"), floor(int), position(可选)
 示例: {"action":"delete_element","params":{"element_type":"column","floor":1}}
 
 ### generate_frame — 生成整栋框架
-params: x_spans(list mm), y_spans(list mm), num_floors(int), floor_height(mm), column_section(str), beam_section(str)
-示例: {"action":"generate_frame","params":{"x_spans":[6000,6000,6000],"y_spans":[6000,6000],"num_floors":5,"floor_height":3600,"column_section":"500x500","beam_section":"300x600"}}
+params: x_spans(list mm), y_spans(list mm), num_floors(int), floor_height(mm), column_section(str), beam_section_x(str), beam_section_y(str, 可选)
+示例: {"action":"generate_frame","params":{"x_spans":[6000,6000,6000],"y_spans":[6000,6000],"num_floors":5,"floor_height":3600,"column_section":"500x500","beam_section_x":"300x600","beam_section_y":"300x600"}}
 
 ### query_count — 查询构件数量
 params: element_type("column"/"beam"/"slab"), floor(int, 可选)
@@ -45,6 +45,9 @@ params: element_type("column"/"beam"/"slab"), floor(int, 可选)
 ## 注意
 - 坐标单位统一使用毫米(mm)
 - 楼层编号从 1 开始（1=首层）
+- 柱的 `base_floor/top_floor` 使用楼层边界编号：`1 -> 2` 表示首层柱，`2 -> 3` 表示二层柱
+- 梁、板、按楼层筛选的操作使用故事层号：`floor=1` 表示首层
+- `generate_frame` 中优先输出 `beam_section_x` / `beam_section_y`；如果 X/Y 方向相同，也可以只输出 `beam_section`
 - 如果用户说的信息不完整，用合理的默认值填充
 - 截面格式为 "宽x高"，如 "300x600"
 - 如果用户的请求你无法理解，返回: {"action":"unknown","params":{"message":"无法理解的指令"}}

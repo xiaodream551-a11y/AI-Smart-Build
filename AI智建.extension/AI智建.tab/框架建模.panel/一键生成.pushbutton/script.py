@@ -8,6 +8,7 @@ __author__ = "AI智建"
 from pyrevit import revit, DB, forms, script
 
 from engine.frame_generator import generate_frame, format_stats
+from engine.logger import OperationLog, export_operation_log
 
 # ============================================================
 # 参数输入表单
@@ -156,6 +157,7 @@ class FrameParamsForm(forms.WPFWindow):
 def main():
     doc = revit.doc
     output = script.get_output()
+    operation_log = OperationLog()
 
     # 弹出参数面板
     form = FrameParamsForm()
@@ -173,7 +175,7 @@ def main():
         n=params["num_floors"],
     ))
 
-    total_steps = 1 + 1 + params["num_floors"] * 3
+    total_steps = 1 + 1 + params["num_floors"] * 3 + 1
     current_step = [0]
 
     try:
@@ -205,10 +207,23 @@ def main():
         raise
 
     # 输出统计
+    operation_log.log("create_grid", "一键生成创建轴网", count=stats["grids"])
+    operation_log.log("create_level", "一键生成创建标高", count=stats["levels"])
+    operation_log.log("create_column", "一键生成创建结构柱", count=stats["columns"])
+    operation_log.log("create_beam", "一键生成创建结构梁", count=stats["beams"])
+    operation_log.log("create_floor", "一键生成创建楼板", count=stats["floors"])
+    log_path = export_operation_log(operation_log, u"一键生成")
+
     output.print_md("---")
     output.print_md("### " + format_stats(stats).replace("\n", "\n- "))
+    output.print_md("### " + operation_log.get_summary())
+    if log_path:
+        output.print_md("- 日志已导出：`{}`".format(log_path))
 
-    forms.alert(format_stats(stats), title="AI 智建 — 生成完成")
+    message = format_stats(stats)
+    if log_path:
+        message += "\n\n日志：{}".format(log_path)
+    forms.alert(message, title="AI 智建 — 生成完成")
 
 
 # 入口
