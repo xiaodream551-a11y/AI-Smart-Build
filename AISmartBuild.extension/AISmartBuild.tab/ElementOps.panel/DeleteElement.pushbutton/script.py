@@ -1,3 +1,4 @@
+#! python3
 # -*- coding: utf-8 -*-
 """Delete specified elements or batch-delete by filter criteria."""
 

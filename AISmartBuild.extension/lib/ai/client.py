@@ -11,6 +11,11 @@ except NameError:
     string_types = (str,)
 
 try:
+    TimeoutError
+except NameError:
+    TimeoutError = OSError
+
+try:
     import clr
     clr.AddReference("System")
     clr.AddReference("System.Net")

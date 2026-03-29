@@ -1,3 +1,4 @@
+#! python3
 # -*- coding: utf-8 -*-
 """One-click frame structure model generation."""
 
