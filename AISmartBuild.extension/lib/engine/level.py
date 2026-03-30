@@ -2,7 +2,7 @@
 """Level creation."""
 
 from pyrevit import DB
-from utils import mm_to_feet, find_level_by_name, find_level_by_elevation
+from utils import mm_to_feet, find_level_by_name, find_level_by_elevation, _set_name
 
 
 def create_level(doc, name, elevation_mm):
@@ -29,7 +29,7 @@ def create_level(doc, name, elevation_mm):
         return existing
 
     level = DB.Level.Create(doc, elevation_feet)
-    level.Name = name
+    _set_name(level, name)
     return level
 
 

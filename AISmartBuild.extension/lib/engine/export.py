@@ -15,7 +15,7 @@ from engine.element_utils import (
     is_valid_element_id,
     resolve_level_name,
 )
-from utils import feet_to_mm, get_sorted_levels
+from utils import feet_to_mm, get_sorted_levels, _get_name
 
 
 _CATEGORY_TO_NAME = {
@@ -30,7 +30,7 @@ def export_model_data(doc):
     data = {
         "levels": [
             {
-                "name": level.Name,
+                "name": _get_name(level),
                 "elevation_mm": _round_mm(feet_to_mm(level.Elevation)),
             }
             for level in levels

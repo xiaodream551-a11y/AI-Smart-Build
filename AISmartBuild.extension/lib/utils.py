@@ -9,6 +9,22 @@ except NameError:
     string_types = (str,)
 
 
+def _get_name(element):
+    """Get element name, compatible with Revit 2018-2024 IronPython."""
+    try:
+        return element.Name
+    except AttributeError:
+        return DB.Element.Name.GetValue(element)
+
+
+def _set_name(element, name):
+    """Set element name, compatible with Revit 2018-2024 IronPython."""
+    try:
+        element.Name = name
+    except AttributeError:
+        DB.Element.Name.SetValue(element, name)
+
+
 _CHINESE_DIGIT_MAP = {
     u"零": 0,
     u"一": 1,
@@ -82,9 +98,9 @@ def find_family_symbol(doc, category_id, family_name=None, type_name=None):
         .OfCategory(category_id)
 
     for symbol in collector:
-        if family_name and family_name not in symbol.Family.Name:
+        if family_name and family_name not in _get_name(symbol.Family):
             continue
-        if type_name and type_name not in symbol.Name:
+        if type_name and type_name not in _get_name(symbol):
             continue
         return symbol
     return None
@@ -174,7 +190,7 @@ def get_floor_type(doc, type_name=None):
     for name in [type_name, FLOOR_TYPE_NAME, FLOOR_TYPE_NAME_EN]:
         if name:
             for ft in collector:
-                if name in ft.Name:
+                if name in _get_name(ft):
                     return ft
 
     # Fallback: return the first available
@@ -188,7 +204,7 @@ def find_level_by_name(doc, name):
     collector = DB.FilteredElementCollector(doc) \
         .OfClass(DB.Level)
     for level in collector:
-        if level.Name == name:
+        if _get_name(level) == name:
             return level
     return None
 

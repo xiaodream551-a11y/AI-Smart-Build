@@ -2,7 +2,7 @@
 """Grid creation."""
 
 from pyrevit import DB
-from utils import mm_to_feet
+from utils import mm_to_feet, _set_name
 
 
 def create_grid(doc, name, start_x_mm, start_y_mm, end_x_mm, end_y_mm):
@@ -21,7 +21,7 @@ def create_grid(doc, name, start_x_mm, start_y_mm, end_x_mm, end_y_mm):
     line = DB.Line.CreateBound(start, end)
 
     grid = DB.Grid.Create(doc, line)
-    grid.Name = name
+    _set_name(grid, name)
     return grid
 
 

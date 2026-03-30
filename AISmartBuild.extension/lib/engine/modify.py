@@ -3,6 +3,7 @@
 
 from pyrevit import DB
 from utils import (
+    _get_name,
     get_sorted_levels,
     mm_to_feet,
     normalize_floor_number,
@@ -76,7 +77,7 @@ def modify_element(doc, element_id, new_section=None, new_level=None):
         if new_level is not None:
             try:
                 target_level = _change_element_level(doc, element, new_level)
-                result_parts.append(u"标高为 {}".format(target_level.Name))
+                result_parts.append(u"标高为 {}".format(_get_name(target_level)))
             except Exception as err:
                 error_parts.append(u"标高修改失败: {}".format(err))
 
@@ -163,7 +164,7 @@ def batch_modify_by_filter(doc, category, floor_level, old_section, new_section)
 
         if not elements:
             return u"未找到符合条件的{}（标高：{}，截面：{}）".format(
-                _get_category_label(cat), level.Name, old_section_text
+                _get_category_label(cat), _get_name(level), old_section_text
             )
 
         success = 0
@@ -184,7 +185,7 @@ def batch_modify_by_filter(doc, category, floor_level, old_section, new_section)
             _format_count(cat, success), new_section_text
         )
         if floor_level is not None:
-            result += u"，标高：{}".format(level.Name)
+            result += u"，标高：{}".format(_get_name(level))
         if failed:
             result += u"，失败 {} 个".format(failed)
         return result
@@ -224,7 +225,7 @@ def batch_delete_by_filter(doc, category, floor_level=None):
         if not element_ids:
             if level:
                 return u"未找到可删除的{}（标高：{}）".format(
-                    _get_category_label(cat), level.Name
+                    _get_category_label(cat), _get_name(level)
                 )
             return u"未找到可删除的{}".format(_get_category_label(cat))
 
@@ -244,7 +245,7 @@ def batch_delete_by_filter(doc, category, floor_level=None):
 
         result = u"已删除 {}".format(_format_count(cat, success))
         if level:
-            result += u"，标高：{}".format(level.Name)
+            result += u"，标高：{}".format(_get_name(level))
         if failed:
             result += u"，失败 {} 个".format(failed)
         return result
