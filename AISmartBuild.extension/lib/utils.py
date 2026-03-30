@@ -14,7 +14,7 @@ def _get_name(element):
     try:
         return element.Name
     except AttributeError:
-        return DB.Element.Name.GetValue(element)
+        return element.GetType().GetProperty("Name").GetValue(element, None)
 
 
 def _set_name(element, name):
@@ -22,7 +22,7 @@ def _set_name(element, name):
     try:
         element.Name = name
     except AttributeError:
-        DB.Element.Name.SetValue(element, name)
+        element.GetType().GetProperty("Name").SetValue(element, name, None)
 
 
 _CHINESE_DIGIT_MAP = {
