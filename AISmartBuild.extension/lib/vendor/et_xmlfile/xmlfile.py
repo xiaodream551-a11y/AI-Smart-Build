@@ -6,128 +6,76 @@ from __future__ import absolute_import
 
 from contextlib import contextmanager
 
-from xml.etree.ElementTree import (
-    Element,
-    _escape_cdata,
-)
-
-from . import incremental_tree
+from xml.etree.ElementTree import Element, tostring
 
 
 class LxmlSyntaxError(Exception):
     pass
 
 
-class _IncrementalFileWriter(object):
-    """Replacement for _IncrementalFileWriter of lxml"""
+class _FakeIncrementalFileWriter(object):
+    """Replacement for _IncrementalFileWriter of lxml.
+       Uses ElementTree to build xml in memory."""
     def __init__(self, output_file):
         self._element_stack = []
+        self._top_element = None
         self._file = output_file
         self._have_root = False
-        self.global_nsmap = incremental_tree.current_global_nsmap()
-        self.is_html = False
 
     @contextmanager
     def element(self, tag, attrib=None, nsmap=None, **_extra):
-        """Create a new xml element using a context manager."""
-        if nsmap and None in nsmap:
-            # Normalise None prefix (lxml's default namespace prefix) -> "", as
-            # required for incremental_tree
-            if "" in nsmap and nsmap[""] != nsmap[None]:
-                raise ValueError(
-                    'Found None and "" as default nsmap prefixes with different URIs'
-                )
-            nsmap = nsmap.copy()
-            nsmap[""] = nsmap.pop(None)
+        """Create a new xml element using a context manager.
+        The elements are written when the top level context is left.
+
+        This is for code compatibility only as it is quite slow.
+        """
 
         # __enter__ part
         self._have_root = True
         if attrib is None:
             attrib = {}
-        elem = Element(tag, attrib=attrib, **_extra)
-        elem.text = ''
-        elem.tail = ''
-        if self._element_stack:
-            is_root = False
-            (
-                nsmap_scope,
-                default_ns_attr_prefix,
-                uri_to_prefix,
-            ) = self._element_stack[-1]
-        else:
-            is_root = True
-            nsmap_scope = {}
-            default_ns_attr_prefix = None
-            uri_to_prefix = {}
-        (
-            tag,
-            nsmap_scope,
-            default_ns_attr_prefix,
-            uri_to_prefix,
-            next_remains_root,
-        ) = incremental_tree.write_elem_start(
-            self._file,
-            elem,
-            nsmap_scope=nsmap_scope,
-            global_nsmap=self.global_nsmap,
-            short_empty_elements=False,
-            is_html=self.is_html,
-            is_root=is_root,
-            uri_to_prefix=uri_to_prefix,
-            default_ns_attr_prefix=default_ns_attr_prefix,
-            new_nsmap=nsmap,
-        )
-        self._element_stack.append(
-            (
-                nsmap_scope,
-                default_ns_attr_prefix,
-                uri_to_prefix,
-            )
-        )
+        self._top_element = Element(tag, attrib=attrib, **_extra)
+        self._top_element.text = ''
+        self._top_element.tail = ''
+        self._element_stack.append(self._top_element)
         yield
 
         # __exit__ part
-        self._element_stack.pop()
-        self._file(f"</{tag}>")
-        if elem.tail:
-            self._file(_escape_cdata(elem.tail))
+        el = self._element_stack.pop()
+        if self._element_stack:
+            parent = self._element_stack[-1]
+            parent.append(self._top_element)
+            self._top_element = parent
+        else:
+            self._write_element(el)
+            self._top_element = None
 
     def write(self, arg):
         """Write a string or subelement."""
 
         if isinstance(arg, str):
             # it is not allowed to write a string outside of an element
-            if not self._element_stack:
+            if self._top_element is None:
                 raise LxmlSyntaxError()
-            self._file(_escape_cdata(arg))
+
+            if len(self._top_element) == 0:
+                # element has no children: add string to text
+                self._top_element.text += arg
+            else:
+                # element has children: add string to tail of last child
+                self._top_element[-1].tail += arg
 
         else:
-            if not self._element_stack and self._have_root:
+            if self._top_element is not None:
+                self._top_element.append(arg)
+            elif not self._have_root:
+                self._write_element(arg)
+            else:
                 raise LxmlSyntaxError()
 
-            if self._element_stack:
-                is_root = False
-                (
-                    nsmap_scope,
-                    default_ns_attr_prefix,
-                    uri_to_prefix,
-                ) = self._element_stack[-1]
-            else:
-                is_root = True
-                nsmap_scope = {}
-                default_ns_attr_prefix = None
-                uri_to_prefix = {}
-            incremental_tree._serialize_ns_xml(
-                self._file,
-                arg,
-                nsmap_scope=nsmap_scope,
-                global_nsmap=self.global_nsmap,
-                short_empty_elements=True,
-                is_html=self.is_html,
-                is_root=is_root,
-                uri_to_prefix=uri_to_prefix,
-                default_ns_attr_prefix=default_ns_attr_prefix,
-            )
+    def _write_element(self, element):
+        xml = tostring(element)
+        self._file.write(xml)
 
     def __enter__(self):
         pass
@@ -140,19 +88,17 @@ class _IncrementalFileWriter(object):
 
 class xmlfile(object):
     """Context manager that can replace lxml.etree.xmlfile."""
-    def __init__(self, output_file, buffered=False, encoding="utf-8", close=False):
-        self._file = output_file
-        self._close = close
-        self.encoding = encoding
-        self.writer_cm = None
+    def __init__(self, output_file, buffered=False, encoding=None, close=False):
+        if isinstance(output_file, str):
+            self._file = open(output_file, 'wb')
+            self._close = True
+        else:
+            self._file = output_file
+            self._close = close
 
     def __enter__(self):
-        self.writer_cm = incremental_tree._get_writer(self._file, encoding=self.encoding)
-        writer, declared_encoding = self.writer_cm.__enter__()
-        return _IncrementalFileWriter(writer)
+        return _FakeIncrementalFileWriter(self._file)
 
     def __exit__(self, type, value, traceback):
-        if self.writer_cm:
-            self.writer_cm.__exit__(type, value, traceback)
-        if self._close:
+        if self._close == True:
             self._file.close()
