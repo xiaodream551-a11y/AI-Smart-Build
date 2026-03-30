@@ -14,9 +14,7 @@ def _get_name(element):
     try:
         return element.Name
     except Exception:
-        import clr
-        prop = clr.GetClrType(DB.Element).GetProperty("Name")
-        return prop.GetValue(element, None)
+        return element.get_Name()
 
 
 def _set_name(element, name):
@@ -24,9 +22,7 @@ def _set_name(element, name):
     try:
         element.Name = name
     except Exception:
-        import clr
-        prop = clr.GetClrType(DB.Element).GetProperty("Name")
-        prop.SetValue(element, name, None)
+        element.set_Name(name)
 
 
 _CHINESE_DIGIT_MAP = {
