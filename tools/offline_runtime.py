@@ -31,6 +31,9 @@ class FakeBuiltInCategory(object):
     OST_StructuralColumns = 1
     OST_StructuralFraming = 2
     OST_Floors = 3
+    OST_Walls = 4
+    OST_Doors = 5
+    OST_Windows = 6
 
 
 class FakeBuiltInParameter(object):
@@ -46,6 +49,8 @@ class FakeBuiltInParameter(object):
     FLOOR_HEIGHTABOVELEVEL_PARAM = "FLOOR_HEIGHTABOVELEVEL_PARAM"
     Z_OFFSET_VALUE = "Z_OFFSET_VALUE"
     HOST_AREA_COMPUTED = "HOST_AREA_COMPUTED"
+    WALL_ATTR_WIDTH_PARAM = "WALL_ATTR_WIDTH_PARAM"
+    INSTANCE_SILL_HEIGHT_PARAM = "INSTANCE_SILL_HEIGHT_PARAM"
 
 
 class FakeCategory(object):
@@ -59,10 +64,17 @@ class FakeCategory(object):
 class FakeLevel(object):
     """Simplified Level stub."""
 
+    _counter = 9000
+
     def __init__(self, name, elevation, element_id):
         self.Name = name
         self.Elevation = elevation
         self.Id = FakeElementId(element_id)
+
+    @staticmethod
+    def Create(doc, elevation_feet):
+        FakeLevel._counter += 1
+        return FakeLevel("", elevation_feet, FakeLevel._counter)
 
 
 class FakeParameter(object):
@@ -105,6 +117,54 @@ class FakeCurve(object):
 
     def GetEndPoint(self, index):
         return self._points[index]
+
+
+class FakeLine(object):
+    """Simplified Line stub with CreateBound factory."""
+
+    def __init__(self, start, end):
+        self._start = start
+        self._end = end
+
+    def GetEndPoint(self, index):
+        return [self._start, self._end][index]
+
+    @staticmethod
+    def CreateBound(start, end):
+        return FakeLine(start, end)
+
+
+class FakeGrid(object):
+    """Simplified Grid stub."""
+
+    _counter = 8000
+
+    def __init__(self):
+        self.Name = None
+        FakeGrid._counter += 1
+        self.Id = FakeElementId(FakeGrid._counter)
+
+    @staticmethod
+    def Create(doc, line):
+        return FakeGrid()
+
+
+class FakeWall(object):
+    """Simplified Wall stub."""
+
+    _counter = 7000
+
+    def __init__(self):
+        FakeWall._counter += 1
+        self.Id = FakeElementId(FakeWall._counter)
+        self._params = {}
+
+    def get_Parameter(self, bid):
+        return self._params.get(bid)
+
+    @staticmethod
+    def Create(doc, line, wall_type_id, level_id, height, offset, flip, structural):
+        return FakeWall()
 
 
 class FakePointLocation(object):
@@ -229,7 +289,9 @@ class FakeFilteredElementCollector(object):
 
 
 class _FakeStructure(object):
-    StructuralType = types.SimpleNamespace(Column="Column", Beam="Beam")
+    StructuralType = types.SimpleNamespace(
+        Column="Column", Beam="Beam", NonStructural="NonStructural",
+    )
 
 
 class _FakeOutput(object):
@@ -273,9 +335,13 @@ FakeDB = types.SimpleNamespace(
     BuiltInCategory=FakeBuiltInCategory,
     BuiltInParameter=FakeBuiltInParameter,
     Level=FakeLevel,
+    Line=FakeLine,
+    Grid=FakeGrid,
+    Wall=FakeWall,
     FilteredElementCollector=FakeFilteredElementCollector,
     FamilySymbol=type("FamilySymbol", (), {}),
     FloorType=type("FloorType", (), {}),
+    WallType=type("WallType", (), {}),
     Structure=_FakeStructure(),
     XYZ=FakeXYZ,
 )
@@ -328,6 +394,8 @@ def install_clr_stub():
 
 def install_pyrevit_stub():
     """Install minimal pyrevit stubs."""
+    if "pyrevit" in sys.modules:
+        return sys.modules["pyrevit"]
     pyrevit_module = types.ModuleType("pyrevit")
     pyrevit_module.__path__ = []
     pyrevit_module.DB = FakeDB
