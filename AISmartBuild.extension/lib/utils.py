@@ -14,15 +14,37 @@ def _get_name(element):
     try:
         return element.Name
     except Exception:
-        return element.get_Name()
+        pass
+    for bid in [DB.BuiltInParameter.SYMBOL_NAME_PARAM,
+                DB.BuiltInParameter.DATUM_TEXT,
+                DB.BuiltInParameter.ALL_MODEL_TYPE_NAME,
+                DB.BuiltInParameter.ALL_MODEL_FAMILY_NAME]:
+        try:
+            p = element.get_Parameter(bid)
+            if p is not None and p.HasValue:
+                val = p.AsString()
+                if val:
+                    return val
+        except Exception:
+            continue
+    return ""
 
 
 def _set_name(element, name):
     """Set element name, compatible with Revit 2018-2024 IronPython."""
     try:
         element.Name = name
+        return
     except Exception:
-        element.set_Name(name)
+        pass
+    for bid in [DB.BuiltInParameter.DATUM_TEXT]:
+        try:
+            p = element.get_Parameter(bid)
+            if p is not None and not p.IsReadOnly:
+                p.Set(name)
+                return
+        except Exception:
+            continue
 
 
 _CHINESE_DIGIT_MAP = {
@@ -98,10 +120,15 @@ def find_family_symbol(doc, category_id, family_name=None, type_name=None):
         .OfCategory(category_id)
 
     for symbol in collector:
-        if family_name and family_name not in _get_name(symbol.Family):
-            continue
-        if type_name and type_name not in _get_name(symbol):
-            continue
+        if family_name:
+            p = symbol.get_Parameter(DB.BuiltInParameter.ALL_MODEL_FAMILY_NAME)
+            fam = p.AsString() if p and p.HasValue else ""
+            if family_name not in fam:
+                continue
+        if type_name:
+            sym_name = _get_name(symbol)
+            if type_name not in sym_name:
+                continue
         return symbol
     return None
 
