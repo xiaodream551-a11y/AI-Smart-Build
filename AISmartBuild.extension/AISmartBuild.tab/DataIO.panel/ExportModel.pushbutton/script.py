@@ -1,4 +1,3 @@
-#! python3
 # -*- coding: utf-8 -*-
 """Export columns, beams, and slabs from the current model."""
 
@@ -7,6 +6,12 @@ __title__ = "导出\n模型"
 __author__ = "AI智建"
 
 import os
+import sys
+
+_vendor = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))))), "lib", "vendor")
+if _vendor not in sys.path:
+    sys.path.insert(0, _vendor)
 
 from pyrevit import forms, revit, script
 

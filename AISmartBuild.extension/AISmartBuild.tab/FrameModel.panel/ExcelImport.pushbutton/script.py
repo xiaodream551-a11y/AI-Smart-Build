@@ -1,10 +1,17 @@
-#! python3
 # -*- coding: utf-8 -*-
 """Batch-import elements from an Excel spreadsheet."""
 
 __doc__ = "选择 Excel 构件清单，批量创建柱、梁"
 __title__ = "Excel\n导入"
 __author__ = "AI智建"
+
+import os
+import sys
+
+_vendor = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))))), "lib", "vendor")
+if _vendor not in sys.path:
+    sys.path.insert(0, _vendor)
 
 import openpyxl
 
