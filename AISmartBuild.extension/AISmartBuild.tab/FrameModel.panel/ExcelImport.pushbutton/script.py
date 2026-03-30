@@ -1,19 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Batch-import elements from an Excel spreadsheet."""
+"""Batch-import elements from an Excel/CSV spreadsheet."""
 
-__doc__ = "选择 Excel 构件清单，批量创建柱、梁"
+__doc__ = "选择 Excel/CSV 构件清单，批量创建柱、梁"
 __title__ = "Excel\n导入"
 __author__ = "AI智建"
 
+import csv
+import io
 import os
 import sys
-
-_vendor = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))))), "lib", "vendor")
-if _vendor not in sys.path:
-    sys.path.insert(0, _vendor)
-
-import openpyxl
 
 from pyrevit import revit, DB, forms, script
 
@@ -94,10 +89,33 @@ def _get_cell(row, index):
     return row[index]
 
 
-def _parse_headers(ws):
-    header_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), None)
-    if not header_row:
-        raise ValueError(u"Excel 缺少表头")
+def _read_rows(file_path):
+    """Read all rows from CSV or Excel file. Returns list of tuples."""
+    if file_path.lower().endswith(".csv"):
+        rows = []
+        with io.open(file_path, "r", encoding="utf-8-sig") as f:
+            reader = csv.reader(f)
+            for row in reader:
+                rows.append(tuple(row))
+        return rows
+
+    # Try xlsx via openpyxl
+    _vendor = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))))), "lib", "vendor")
+    if _vendor not in sys.path:
+        sys.path.insert(0, _vendor)
+    import openpyxl
+    wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+    ws = wb.active
+    rows = [tuple(row) for row in ws.iter_rows(values_only=True)]
+    wb.close()
+    return rows
+
+
+def _parse_headers(rows):
+    if not rows:
+        raise ValueError(u"文件缺少表头")
+    header_row = rows[0]
 
     header_map = {}
     for index, value in enumerate(header_row):
@@ -184,7 +202,7 @@ def main():
     logger = script.get_logger()
     operation_log = OperationLog()
 
-    file_path = forms.pick_file(file_ext='xlsx')
+    file_path = forms.pick_file(file_ext='csv;xlsx')
     if not file_path:
         script.exit()
 
@@ -193,23 +211,18 @@ def main():
         forms.alert(u"当前模型标高不足，至少需要 2 个标高。", title=u"AI 智建")
         script.exit()
 
-    output.print_md(u"## AI 智建 — Excel 导入")
+    output.print_md(u"## AI 智建 — 构件导入")
     output.print_md(u"- 文件：`{}`".format(file_path))
 
-    workbook = None
     operations = []
     skipped_logs = []
     skipped_count = 0
 
     try:
-        workbook = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
-        worksheet = workbook.active
-        header_map = _parse_headers(worksheet)
+        rows = _read_rows(file_path)
+        header_map = _parse_headers(rows)
 
-        for row_index, row in enumerate(
-            worksheet.iter_rows(min_row=2, values_only=True),
-            start=2
-        ):
+        for row_index, row in enumerate(rows[1:], start=2):
             try:
                 operations.append(_parse_row(row_index, row, header_map, levels))
             except Exception as err:
@@ -219,11 +232,8 @@ def main():
                     row_index, _to_text(err), skipped_logs
                 )
     except Exception as err:
-        forms.alert(u"Excel 读取失败：{}".format(_to_text(err)), title=u"AI 智建")
+        forms.alert(u"文件读取失败：{}".format(_to_text(err)), title=u"AI 智建")
         script.exit()
-    finally:
-        if workbook:
-            workbook.close()
 
     success_count = 0
 
