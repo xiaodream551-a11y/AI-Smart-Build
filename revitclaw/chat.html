@@ -209,6 +209,44 @@
         max-height: 90%;
         border-radius: 8px;
       }
+
+      /* Mic button */
+      .mic-btn {
+        background: #1a1a2e;
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        font-size: 20px;
+        cursor: pointer;
+        flex-shrink: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      .mic-btn.supported {
+        display: flex;
+      }
+
+      .mic-btn.recording {
+        background: #e74c3c;
+        animation: pulse 1s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.12);
+        }
+      }
     </style>
   </head>
   <body>
@@ -232,6 +270,7 @@
     </div>
 
     <div class="input-area">
+      <button class="mic-btn" id="micBtn">🎤</button>
       <input
         type="text"
         id="input"
@@ -368,6 +407,104 @@
         'RevitClaw 已启动\n在手机上输入中文指令，远程控制 Revit 建模。\n\n示例:\n- "在1-A位置创建一根500x500的柱子"\n- "查询模型有多少构件"\n- "生成3x2跨5层框架"',
         "bot",
       );
+
+      // ── Voice input (press-and-hold) ──
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+      const micBtn = document.getElementById("micBtn");
+
+      if (SpeechRecognition) {
+        micBtn.classList.add("supported");
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = "zh-CN";
+        recognition.interimResults = true;
+        recognition.continuous = true;
+
+        let finalTranscript = "";
+        let isRecording = false;
+
+        recognition.onresult = function (e) {
+          let interim = "";
+          finalTranscript = "";
+          for (let i = 0; i < e.results.length; i++) {
+            if (e.results[i].isFinal) {
+              finalTranscript += e.results[i][0].transcript;
+            } else {
+              interim += e.results[i][0].transcript;
+            }
+          }
+          inputEl.value = finalTranscript + interim;
+        };
+
+        recognition.onerror = function (e) {
+          if (e.error !== "aborted") {
+            addMessage("语音识别失败: " + e.error, "error");
+          }
+          stopRecording();
+        };
+
+        recognition.onend = function () {
+          if (isRecording) {
+            stopRecording();
+          }
+        };
+
+        function startRecording() {
+          finalTranscript = "";
+          inputEl.value = "";
+          inputEl.placeholder = "正在听...";
+          isRecording = true;
+          micBtn.classList.add("recording");
+          try {
+            recognition.start();
+          } catch (e) {
+            // already started
+          }
+        }
+
+        function stopRecording() {
+          isRecording = false;
+          micBtn.classList.remove("recording");
+          inputEl.placeholder = "输入建模指令...";
+          try {
+            recognition.stop();
+          } catch (e) {
+            // already stopped
+          }
+          // Auto-send if we got text
+          const text = inputEl.value.trim();
+          if (text) {
+            send();
+          }
+        }
+
+        // Press and hold on both mouse and touch
+        micBtn.addEventListener("mousedown", function (e) {
+          e.preventDefault();
+          startRecording();
+        });
+        micBtn.addEventListener("mouseup", function (e) {
+          e.preventDefault();
+          stopRecording();
+        });
+        micBtn.addEventListener("mouseleave", function () {
+          if (isRecording) stopRecording();
+        });
+
+        // Touch events for mobile
+        micBtn.addEventListener("touchstart", function (e) {
+          e.preventDefault();
+          startRecording();
+        });
+        micBtn.addEventListener("touchend", function (e) {
+          e.preventDefault();
+          stopRecording();
+        });
+        micBtn.addEventListener("touchcancel", function () {
+          if (isRecording) stopRecording();
+        });
+      }
     </script>
   </body>
 </html>
