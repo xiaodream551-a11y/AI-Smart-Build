@@ -20,6 +20,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          pip install pytest openpyxl
+          pip install pytest openpyxl flask
       - name: Run tests
         run: python -m pytest -v
