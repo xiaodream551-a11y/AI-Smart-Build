@@ -69,53 +69,63 @@ def export_to_json(data, filepath):
         json.dump(data, output_file, ensure_ascii=False, indent=2)
 
 
+def _export_to_csv(data, filepath):
+    """Fallback: export as CSV when openpyxl fails in IronPython."""
+    import csv
+    csv_path = filepath.replace(".xlsx", ".csv")
+    with io.open(csv_path, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([u"类型", u"ID", u"X(mm)", u"Y(mm)", u"底标高/起点X",
+                         u"顶标高/起点Y", u"终点X", u"终点Y", u"标高", u"截面", u"面积(m²)"])
+        for item in data.get("columns", []):
+            writer.writerow([u"柱", item["id"], item["x_mm"], item["y_mm"],
+                             item["base_level"], item["top_level"], "", "", "", item["section"], ""])
+        for item in data.get("beams", []):
+            writer.writerow([u"梁", item["id"], "", "", item["start_x_mm"], item["start_y_mm"],
+                             item["end_x_mm"], item["end_y_mm"], item["level"], item["section"], ""])
+        for item in data.get("slabs", []):
+            writer.writerow([u"板", item["id"], "", "", "", "", "", "", item["level"], "", item["area_sqm"]])
+    return csv_path
+
+
 def export_to_excel(data, filepath):
-    from openpyxl import Workbook
+    try:
+        from openpyxl import Workbook
 
-    _ensure_parent_dir(filepath)
+        _ensure_parent_dir(filepath)
 
-    workbook = Workbook()
-    default_sheet = workbook.active
-    workbook.remove(default_sheet)
+        workbook = Workbook(write_only=True)
 
-    _append_sheet(workbook, u"柱", [u"ID", u"X(mm)", u"Y(mm)", u"底标高", u"顶标高", u"截面"], [
-        [
-            item["id"],
-            item["x_mm"],
-            item["y_mm"],
-            item["base_level"],
-            item["top_level"],
-            item["section"],
-        ]
-        for item in data.get("columns", [])
-    ])
-    _append_sheet(workbook, u"梁", [u"ID", u"起点X", u"起点Y", u"终点X", u"终点Y", u"标高", u"截面"], [
-        [
-            item["id"],
-            item["start_x_mm"],
-            item["start_y_mm"],
-            item["end_x_mm"],
-            item["end_y_mm"],
-            item["level"],
-            item["section"],
-        ]
-        for item in data.get("beams", [])
-    ])
-    _append_sheet(workbook, u"板", [u"ID", u"标高", u"面积(m²)"], [
-        [
-            item["id"],
-            item["level"],
-            item["area_sqm"],
-        ]
-        for item in data.get("slabs", [])
-    ])
-    _append_sheet(workbook, u"汇总", [u"项目", u"数量"], [
-        [u"柱", data.get("summary", {}).get("columns", 0)],
-        [u"梁", data.get("summary", {}).get("beams", 0)],
-        [u"板", data.get("summary", {}).get("slabs", 0)],
-    ])
+        def _write_sheet(wb, title, headers, rows):
+            ws = wb.create_sheet(title=title)
+            ws.append(headers)
+            for row in rows:
+                ws.append(row)
 
-    workbook.save(filepath)
+        _write_sheet(workbook, u"柱", [u"ID", u"X(mm)", u"Y(mm)", u"底标高", u"顶标高", u"截面"], [
+            [item["id"], item["x_mm"], item["y_mm"],
+             item["base_level"], item["top_level"], item["section"]]
+            for item in data.get("columns", [])
+        ])
+        _write_sheet(workbook, u"梁", [u"ID", u"起点X", u"起点Y", u"终点X", u"终点Y", u"标高", u"截面"], [
+            [item["id"], item["start_x_mm"], item["start_y_mm"],
+             item["end_x_mm"], item["end_y_mm"], item["level"], item["section"]]
+            for item in data.get("beams", [])
+        ])
+        _write_sheet(workbook, u"板", [u"ID", u"标高", u"面积(m²)"], [
+            [item["id"], item["level"], item["area_sqm"]]
+            for item in data.get("slabs", [])
+        ])
+        _write_sheet(workbook, u"汇总", [u"项目", u"数量"], [
+            [u"柱", data.get("summary", {}).get("columns", 0)],
+            [u"梁", data.get("summary", {}).get("beams", 0)],
+            [u"板", data.get("summary", {}).get("slabs", 0)],
+        ])
+
+        workbook.save(filepath)
+    except Exception:
+        csv_path = _export_to_csv(data, filepath)
+        raise Exception(u"Excel 不可用，已导出 CSV: " + csv_path)
 
 
 def _append_sheet(workbook, title, headers, rows):
