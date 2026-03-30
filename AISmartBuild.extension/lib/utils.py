@@ -13,16 +13,20 @@ def _get_name(element):
     """Get element name, compatible with Revit 2018-2024 IronPython."""
     try:
         return element.Name
-    except AttributeError:
-        return element.GetType().GetProperty("Name").GetValue(element, None)
+    except Exception:
+        import clr
+        prop = clr.GetClrType(DB.Element).GetProperty("Name")
+        return prop.GetValue(element, None)
 
 
 def _set_name(element, name):
     """Set element name, compatible with Revit 2018-2024 IronPython."""
     try:
         element.Name = name
-    except AttributeError:
-        element.GetType().GetProperty("Name").SetValue(element, name, None)
+    except Exception:
+        import clr
+        prop = clr.GetClrType(DB.Element).GetProperty("Name")
+        prop.SetValue(element, name, None)
 
 
 _CHINESE_DIGIT_MAP = {
