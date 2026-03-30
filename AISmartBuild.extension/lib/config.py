@@ -108,7 +108,29 @@ MAX_CONVERSATION_TURNS = _read_int_config(
     aliases=["AI_SMART_BUILD_MAX_CONVERSATION_TURNS"]
 )
 
-
+# ============================================================
+# Vision API configuration (for architectural drawing recognition)
+# ============================================================
+VISION_API_URL = _read_config(
+    "VISION_API_URL",
+    "https://api.openai.com/v1/chat/completions",
+    aliases=["AI_SMART_BUILD_VISION_API_URL"],
+)
+VISION_API_KEY = _read_config(
+    "VISION_API_KEY",
+    "",
+    aliases=["AI_SMART_BUILD_VISION_API_KEY"],
+)
+VISION_MODEL = _read_config(
+    "VISION_MODEL",
+    "gpt-4o",
+    aliases=["AI_SMART_BUILD_VISION_MODEL"],
+)
+VISION_TIMEOUT_MS = _read_int_config(
+    "VISION_TIMEOUT_MS",
+    60000,
+    aliases=["AI_SMART_BUILD_VISION_TIMEOUT_MS"],
+)
 
 # ============================================================
 # Startup config validation

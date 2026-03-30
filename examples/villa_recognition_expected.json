@@ -1,0 +1,271 @@
+{
+  "description": "小别墅一层平面图 - 手动标注的期望识别结果 (ground truth)",
+  "source": "小别墅施工图纸_p1.png",
+  "drawing_info": {
+    "title": "一层平面图",
+    "scale": "1:100",
+    "floor": 1
+  },
+  "grids": {
+    "x": [
+      { "name": "1", "distance": 0 },
+      { "name": "2", "distance": 1500 },
+      { "name": "3", "distance": 3600 },
+      { "name": "4", "distance": 7800 },
+      { "name": "5", "distance": 11400 }
+    ],
+    "y": [
+      { "name": "A", "distance": 0 },
+      { "name": "B", "distance": 1500 },
+      { "name": "C", "distance": 6000 },
+      { "name": "D", "distance": 9300 },
+      { "name": "E", "distance": 9900 }
+    ]
+  },
+  "levels": [
+    { "name": "室外地坪", "elevation": -0.45 },
+    { "name": "1F", "elevation": 0.0 },
+    { "name": "2F", "elevation": 3.4 },
+    { "name": "檐口", "elevation": 6.953 },
+    { "name": "屋脊", "elevation": 8.543 }
+  ],
+  "walls": [
+    {
+      "id": "W1",
+      "start": { "grid_x": "1", "grid_y": "A", "offset_x": 0, "offset_y": 0 },
+      "end": { "grid_x": "5", "grid_y": "A", "offset_x": 0, "offset_y": 0 },
+      "thickness": 240,
+      "type": "exterior",
+      "note": "南外墙"
+    },
+    {
+      "id": "W2",
+      "start": { "grid_x": "5", "grid_y": "A", "offset_x": 0, "offset_y": 0 },
+      "end": { "grid_x": "5", "grid_y": "E", "offset_x": 0, "offset_y": 0 },
+      "thickness": 240,
+      "type": "exterior",
+      "note": "东外墙"
+    },
+    {
+      "id": "W3",
+      "start": { "grid_x": "1", "grid_y": "E", "offset_x": 0, "offset_y": 0 },
+      "end": { "grid_x": "5", "grid_y": "E", "offset_x": 0, "offset_y": 0 },
+      "thickness": 240,
+      "type": "exterior",
+      "note": "北外墙"
+    },
+    {
+      "id": "W4",
+      "start": { "grid_x": "1", "grid_y": "A", "offset_x": 0, "offset_y": 0 },
+      "end": { "grid_x": "1", "grid_y": "E", "offset_x": 0, "offset_y": 0 },
+      "thickness": 240,
+      "type": "exterior",
+      "note": "西外墙"
+    },
+    {
+      "id": "W5",
+      "start": { "grid_x": "3", "grid_y": "A", "offset_x": 0, "offset_y": 0 },
+      "end": { "grid_x": "3", "grid_y": "C", "offset_x": 0, "offset_y": 0 },
+      "thickness": 240,
+      "type": "interior",
+      "note": "车库与客厅隔墙"
+    },
+    {
+      "id": "W6",
+      "start": { "grid_x": "1", "grid_y": "C", "offset_x": 0, "offset_y": 0 },
+      "end": { "grid_x": "5", "grid_y": "C", "offset_x": 0, "offset_y": 0 },
+      "thickness": 240,
+      "type": "interior",
+      "note": "南北分隔墙"
+    },
+    {
+      "id": "W7",
+      "start": { "grid_x": "3", "grid_y": "C", "offset_x": 0, "offset_y": 0 },
+      "end": { "grid_x": "3", "grid_y": "E", "offset_x": 0, "offset_y": 0 },
+      "thickness": 240,
+      "type": "interior",
+      "note": "卫生间与楼梯间隔墙"
+    },
+    {
+      "id": "W8",
+      "start": { "grid_x": "4", "grid_y": "C", "offset_x": 0, "offset_y": 0 },
+      "end": { "grid_x": "4", "grid_y": "E", "offset_x": 0, "offset_y": 0 },
+      "thickness": 240,
+      "type": "interior",
+      "note": "厨房西墙"
+    }
+  ],
+  "doors": [
+    {
+      "code": "M3031",
+      "width": 3000,
+      "height": 3100,
+      "host_wall": "W1",
+      "position": {
+        "grid_x": "2",
+        "grid_y": "A",
+        "offset_x": 0,
+        "offset_y": 0
+      },
+      "note": "车库卷帘门"
+    },
+    {
+      "code": "M1527",
+      "width": 1500,
+      "height": 2700,
+      "host_wall": "W1",
+      "position": {
+        "grid_x": "3",
+        "grid_y": "A",
+        "offset_x": 600,
+        "offset_y": 0
+      },
+      "note": "客厅南门1"
+    },
+    {
+      "code": "M1527",
+      "width": 1500,
+      "height": 2700,
+      "host_wall": "W1",
+      "position": {
+        "grid_x": "4",
+        "grid_y": "A",
+        "offset_x": -600,
+        "offset_y": 0
+      },
+      "note": "客厅南门2"
+    },
+    {
+      "code": "M0924",
+      "width": 900,
+      "height": 2400,
+      "host_wall": "W5",
+      "position": {
+        "grid_x": "3",
+        "grid_y": "C",
+        "offset_x": 0,
+        "offset_y": -900
+      },
+      "note": "车库内门"
+    },
+    {
+      "code": "M0924",
+      "width": 900,
+      "height": 2400,
+      "host_wall": "W7",
+      "position": {
+        "grid_x": "3",
+        "grid_y": "C",
+        "offset_x": 0,
+        "offset_y": 240
+      },
+      "note": "卫生间门"
+    }
+  ],
+  "windows": [
+    {
+      "code": "C0918",
+      "width": 900,
+      "height": 1800,
+      "sill_height": 900,
+      "host_wall": "W3",
+      "position": {
+        "grid_x": "2",
+        "grid_y": "E",
+        "offset_x": 0,
+        "offset_y": 0
+      },
+      "note": "北面卫生间窗"
+    },
+    {
+      "code": "C0918",
+      "width": 900,
+      "height": 1800,
+      "sill_height": 900,
+      "host_wall": "W3",
+      "position": {
+        "grid_x": "4",
+        "grid_y": "E",
+        "offset_x": 300,
+        "offset_y": 0
+      },
+      "note": "北面厨房窗1"
+    },
+    {
+      "code": "C0918",
+      "width": 900,
+      "height": 1800,
+      "sill_height": 900,
+      "host_wall": "W3",
+      "position": {
+        "grid_x": "4",
+        "grid_y": "E",
+        "offset_x": 1500,
+        "offset_y": 0
+      },
+      "note": "北面厨房窗2"
+    },
+    {
+      "code": "C0618",
+      "width": 600,
+      "height": 1800,
+      "sill_height": 900,
+      "host_wall": "W2",
+      "position": {
+        "grid_x": "5",
+        "grid_y": "B",
+        "offset_x": 0,
+        "offset_y": 0
+      },
+      "note": "东面窗1"
+    },
+    {
+      "code": "C0618",
+      "width": 600,
+      "height": 1800,
+      "sill_height": 900,
+      "host_wall": "W2",
+      "position": {
+        "grid_x": "5",
+        "grid_y": "C",
+        "offset_x": 0,
+        "offset_y": -900
+      },
+      "note": "东面窗2"
+    },
+    {
+      "code": "C2418",
+      "width": 2400,
+      "height": 1800,
+      "sill_height": 900,
+      "host_wall": "W2",
+      "position": {
+        "grid_x": "5",
+        "grid_y": "A",
+        "offset_x": 0,
+        "offset_y": 100
+      },
+      "note": "东南角大窗"
+    },
+    {
+      "code": "MLC3024",
+      "width": 3000,
+      "height": 2400,
+      "sill_height": 900,
+      "host_wall": "W6",
+      "position": {
+        "grid_x": "4",
+        "grid_y": "C",
+        "offset_x": 0,
+        "offset_y": 0
+      },
+      "note": "客厅门联窗"
+    }
+  ],
+  "rooms": [
+    { "name": "车库", "floor": 1 },
+    { "name": "客厅", "floor": 1 },
+    { "name": "厨房", "floor": 1 },
+    { "name": "卫生间", "floor": 1 }
+  ]
+}
