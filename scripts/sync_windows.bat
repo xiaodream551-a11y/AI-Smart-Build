@@ -6,17 +6,19 @@ cd /d "%~dp0\.."
 echo === AI SmartBuild - Sync Latest Code ===
 echo.
 
-git pull --ff-only
+git fetch origin main
 
 if errorlevel 1 (
     echo.
-    echo [NOTE] Sync failed, possibly due to local modification conflicts, attempting force sync...
-    git stash
-    git pull --ff-only
-    git stash pop
+    echo [ERROR] Cannot connect to GitHub, check your network.
+    echo.
+    pause
+    exit /b 1
 )
 
+git reset --hard origin/main
+
 echo.
-echo === Sync complete ===
+echo [OK] Synced to latest version.
 echo.
 pause
