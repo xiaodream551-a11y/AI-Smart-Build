@@ -148,6 +148,7 @@ class TestIconGeneration:
             assert os.path.exists(icon), "Missing dark icon: {}".format(btn_path)
 
     def test_icons_are_correct_size(self):
+        PIL = pytest.importorskip("PIL")
         from PIL import Image
         base = self._get_tab_path()
         for btn_path in self.EXPECTED_BUTTONS:
@@ -158,6 +159,7 @@ class TestIconGeneration:
                 assert img.mode == "RGBA", "{} mode is {}".format(btn_path, img.mode)
 
     def test_dark_icons_are_correct_size(self):
+        PIL = pytest.importorskip("PIL")
         from PIL import Image
         base = self._get_tab_path()
         for btn_path in self.EXPECTED_BUTTONS:
