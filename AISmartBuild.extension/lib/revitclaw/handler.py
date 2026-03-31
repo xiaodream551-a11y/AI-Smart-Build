@@ -24,12 +24,25 @@ class RevitClawHandler(object):
         self._queue = []       # list of (command_dict, threading.Event)
         self._results = []     # list of result dicts
         self._lock = threading.Lock()
+        self._notify_func = None  # called after enqueue to trigger main thread
+
+    def set_notify(self, func):
+        """Set a callback invoked after a command is enqueued.
+
+        Used to call ExternalEvent.Raise() from the pushbutton script.
+        """
+        self._notify_func = func
 
     def enqueue_command(self, command):
         """Add a command to the queue. Returns a threading.Event that signals completion."""
         event = threading.Event()
         with self._lock:
             self._queue.append((command, event))
+        if self._notify_func:
+            try:
+                self._notify_func()
+            except Exception:
+                pass
         return event
 
     def has_pending(self):

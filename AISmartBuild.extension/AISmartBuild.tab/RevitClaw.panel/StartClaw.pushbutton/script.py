@@ -1,14 +1,24 @@
 # -*- coding: utf-8 -*-
 """RevitClaw pushbutton -- start/stop the remote control server.
 
-State is stored in sys.modules so it persists across pyRevit button clicks
-(pyRevit re-executes the script each time, resetting module-level variables).
+Uses ExternalEvent (not Idling) to execute commands on the Revit main thread.
+State is stored in sys.modules to persist across pyRevit button clicks.
 """
 
 import sys
 import types
 
 from pyrevit import revit, DB, script
+
+try:
+    import clr
+    clr.AddReference("RevitAPIUI")
+    from Autodesk.Revit.UI import ExternalEvent, IExternalEventHandler
+    _HAS_REVIT_UI = True
+except (ImportError, Exception):
+    _HAS_REVIT_UI = False
+    ExternalEvent = None
+    IExternalEventHandler = object  # fallback base class for offline
 
 from config import DEEPSEEK_API_KEY, DEEPSEEK_API_URL, DEEPSEEK_MODEL
 from revitclaw.llm_client import RevitClawLLMClient
@@ -25,22 +35,63 @@ if _STATE_KEY not in sys.modules:
     _st = types.ModuleType(_STATE_KEY)
     _st.server = None
     _st.handler = None
-    _st.idling_subscribed = False
-    _st.on_idling_func = None
+    _st.ext_event = None
+    _st.event_handler = None
     sys.modules[_STATE_KEY] = _st
 
 _state = sys.modules[_STATE_KEY]
 
 
-def _on_idling(sender, args):
-    """Revit Idling event callback -- process queued commands."""
-    handler = _state.handler
-    if handler and handler.has_pending():
+# ── ExternalEvent handler (runs on Revit main thread) ──
+
+class ClawEventHandler(IExternalEventHandler):
+    """Processes queued RevitClaw commands on the Revit main thread."""
+
+    def Execute(self, uiapp):
+        handler = _state.handler
+        if not handler or not handler.has_pending():
+            return
         try:
-            with revit.Transaction(u"AI智建：RevitClaw 远程命令"):
+            doc = uiapp.ActiveUIDocument.Document
+            action = ""
+            # Peek at the action to decide if we need a transaction
+            if handler._queue:
+                action = handler._queue[0][0].get("action", "")
+
+            needs_transaction = action in (
+                "create_column", "create_beam", "create_slab",
+                "generate_frame", "delete_element", "modify_section", "batch",
+            )
+
+            if needs_transaction:
+                t = DB.Transaction(doc, u"AI智建：RevitClaw")
+                t.Start()
+                try:
+                    handler.process_next()
+                    t.Commit()
+                except Exception:
+                    if t.HasStarted():
+                        t.RollBack()
+                    raise
+            else:
                 handler.process_next()
-        except Exception:
-            pass
+        except Exception as err:
+            # Ensure the event is signaled even on failure
+            import threading
+            if handler._queue:
+                with handler._lock:
+                    if handler._queue:
+                        cmd, evt = handler._queue.pop(0)
+                        handler._results.append({
+                            "success": False,
+                            "message": str(err),
+                            "action": cmd.get("action", "unknown"),
+                            "screenshot": "",
+                        })
+                        evt.set()
+
+    def GetName(self):
+        return "RevitClaw Event Handler"
 
 
 def _start_server():
@@ -57,19 +108,18 @@ def _start_server():
 
     _state.handler = RevitClawHandler(doc=doc, DB=DB, screenshot_dir=None)
 
+    # Create ExternalEvent for main-thread execution
+    if _HAS_REVIT_UI:
+        _state.event_handler = ClawEventHandler()
+        _state.ext_event = ExternalEvent.Create(_state.event_handler)
+        _state.handler.set_notify(lambda: _state.ext_event.Raise())
+
     _state.server = RevitClawServer(
         handler=_state.handler,
         llm=llm,
         port=REVITCLAW_PORT,
     )
     _state.server.start()
-
-    # Subscribe to Idling event on UIApplication
-    if not _state.idling_subscribed:
-        _state.on_idling_func = _on_idling
-        uiapp = __revit__
-        uiapp.Idling += _state.on_idling_func
-        _state.idling_subscribed = True
 
     import socket
     hostname = socket.gethostname()
@@ -89,14 +139,13 @@ def _stop_server():
         _state.server.stop()
         _state.server = None
 
-    if _state.idling_subscribed and _state.on_idling_func:
+    if _state.ext_event:
         try:
-            uiapp = __revit__
-            uiapp.Idling -= _state.on_idling_func
+            _state.ext_event.Dispose()
         except Exception:
             pass
-        _state.idling_subscribed = False
-        _state.on_idling_func = None
+        _state.ext_event = None
+        _state.event_handler = None
 
     _state.handler = None
     output.print_md(u"## RevitClaw 已停止")
