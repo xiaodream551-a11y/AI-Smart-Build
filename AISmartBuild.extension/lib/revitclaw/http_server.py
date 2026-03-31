@@ -196,14 +196,9 @@ class RevitClawServer(object):
         try:
             # Python 2 (IronPython)
             from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
-            from SocketServer import ThreadingMixIn
         except ImportError:
             # Python 3
             from http.server import HTTPServer, BaseHTTPRequestHandler
-            from socketserver import ThreadingMixIn
-
-        class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
-            daemon_threads = True
 
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, format, *args):
@@ -268,7 +263,8 @@ class RevitClawServer(object):
                     self.end_headers()
 
         try:
-            httpd = ThreadedHTTPServer(("0.0.0.0", self.port), Handler)
+            httpd = HTTPServer(("0.0.0.0", self.port), Handler)
+            httpd.allow_reuse_address = True
             httpd.timeout = 1
             while self._running:
                 httpd.handle_request()
