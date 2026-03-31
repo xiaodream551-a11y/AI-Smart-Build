@@ -206,11 +206,20 @@ class RevitClawServer(object):
             return
 
         listener = HttpListener()
-        listener.Prefixes.Add("http://+:{}/".format(self.port))
 
-        try:
-            listener.Start()
-        except Exception:
+        # Try all-interfaces first (requires admin), fall back to localhost
+        started = False
+        for prefix in ["http://+:{}/", "http://localhost:{}/", "http://127.0.0.1:{}/"]:
+            listener.Prefixes.Clear()
+            listener.Prefixes.Add(prefix.format(self.port))
+            try:
+                listener.Start()
+                started = True
+                break
+            except Exception:
+                continue
+
+        if not started:
             self._running = False
             return
 
@@ -275,13 +284,14 @@ class RevitClawServer(object):
             self._running = False
 
     def _serve_html(self, response):
-        """Serve the chat.html file from the web directory."""
+        """Serve the chat.html file."""
         try:
-            html_dir = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "revitclaw", "web",
-            )
-            html_path = os.path.join(html_dir, "chat.html")
+            # chat.html is at project_root/revitclaw/chat.html
+            # __file__ is at project_root/AISmartBuild.extension/lib/revitclaw/http_server.py
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))
+            )))
+            html_path = os.path.join(project_root, "revitclaw", "chat.html")
             if os.path.isfile(html_path):
                 with open(html_path, "rb") as f:
                     content = f.read()
