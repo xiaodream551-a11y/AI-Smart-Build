@@ -3,7 +3,6 @@
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -21,22 +20,37 @@ pushbutton_script = offline_runtime.load_module_from_path(
 class TestRevitClawPushbutton:
     def test_module_loads(self):
         assert hasattr(pushbutton_script, "main")
+        assert hasattr(pushbutton_script, "_on_idling")
+        assert hasattr(pushbutton_script, "_read_and_clear_pending")
 
-    def test_toggle_start(self):
-        """main() should start the server when not running."""
-        pushbutton_script._state.server = None
-        with patch.object(pushbutton_script, "_start_server") as mock_start:
-            pushbutton_script.main()
-            mock_start.assert_called_once()
+    def test_pending_file_path(self):
+        assert pushbutton_script._PENDING_FILE.endswith("pending.json")
+        assert "revitclaw" in pushbutton_script._PENDING_FILE
 
-    def test_toggle_stop(self):
-        """main() should stop the server when already running."""
-        mock_server = MagicMock()
-        mock_server.is_running.return_value = True
-        pushbutton_script._state.server = mock_server
+    def test_read_empty_pending(self, tmp_path):
+        """Returns empty list when file doesn't exist."""
+        mod = pushbutton_script
+        original = mod._PENDING_FILE
+        mod._PENDING_FILE = str(tmp_path / "nope.json")
         try:
-            with patch.object(pushbutton_script, "_stop_server") as mock_stop:
-                pushbutton_script.main()
-                mock_stop.assert_called_once()
+            assert mod._read_and_clear_pending() == []
         finally:
-            pushbutton_script._state.server = None
+            mod._PENDING_FILE = original
+
+    def test_read_and_clear(self, tmp_path):
+        """Reads commands and clears the file."""
+        import json
+        pending = tmp_path / "pending.json"
+        pending.write_text(json.dumps([{"action": "create_column", "params": {}}]))
+
+        mod = pushbutton_script
+        original = mod._PENDING_FILE
+        mod._PENDING_FILE = str(pending)
+        try:
+            cmds = mod._read_and_clear_pending()
+            assert len(cmds) == 1
+            assert cmds[0]["action"] == "create_column"
+            # File should be cleared
+            assert json.loads(pending.read_text()) == []
+        finally:
+            mod._PENDING_FILE = original
