@@ -15,16 +15,72 @@ output = script.get_output()
 
 REVITCLAW_PORT = 8080
 
-# ── Persistent state ──
+# ── Persistent state (survives pyRevit re-execution) ──
 _STATE_KEY = "__revitclaw_state__"
-
-# Always reset state to clear residual from previous versions
-_st = types.ModuleType(_STATE_KEY)
-_st.server = None
-_st.handler = None
-sys.modules[_STATE_KEY] = _st
+if _STATE_KEY not in sys.modules:
+    _st = types.ModuleType(_STATE_KEY)
+    _st.server = None
+    _st.handler = None
+    _st.idling_bound = False
+    sys.modules[_STATE_KEY] = _st
 
 _state = sys.modules[_STATE_KEY]
+
+# Clean up residual from old DispatcherTimer version
+if hasattr(_state, "timer"):
+    try:
+        _state.timer.Stop()
+    except Exception:
+        pass
+    del _state.timer
+
+
+WRITE_ACTIONS = frozenset([
+    "create_column", "create_beam", "create_slab",
+    "generate_frame", "delete_element", "modify_section", "batch",
+])
+
+
+def _on_idling(sender, args):
+    """Revit Idling callback -- runs on main thread."""
+    handler = _state.handler
+    if not handler or not handler.has_pending():
+        return
+    try:
+        doc = sender.ActiveUIDocument.Document
+
+        # Peek at action to decide if we need a transaction
+        action = ""
+        with handler._lock:
+            if handler._queue:
+                action = handler._queue[0][0].get("action", "")
+
+        if action in WRITE_ACTIONS:
+            t = DB.Transaction(doc, u"AI智建：RevitClaw")
+            t.Start()
+            try:
+                handler.process_next()
+                t.Commit()
+            except Exception:
+                if t.HasStarted():
+                    t.RollBack()
+        else:
+            handler.process_next()
+    except Exception:
+        # Dequeue and signal so nothing hangs
+        try:
+            with handler._lock:
+                if handler._queue:
+                    cmd, evt = handler._queue.pop(0)
+                    handler._results.append({
+                        "success": False,
+                        "message": u"执行异常",
+                        "action": cmd.get("action", ""),
+                        "screenshot": "",
+                    })
+                    evt.set()
+        except Exception:
+            pass
 
 
 def _start_server():
@@ -48,6 +104,11 @@ def _start_server():
     )
     _state.server.start()
 
+    # Register Idling event for command execution
+    if not _state.idling_bound:
+        __revit__.Idling += _on_idling
+        _state.idling_bound = True
+
     import socket
     hostname = socket.gethostname()
     try:
@@ -58,13 +119,20 @@ def _start_server():
     output.print_md(u"## RevitClaw 已启动")
     output.print_md(u"- 本机: http://127.0.0.1:{}".format(REVITCLAW_PORT))
     output.print_md(u"- 局域网: http://{}:{}".format(local_ip, REVITCLAW_PORT))
-    output.print_md(u"\n用浏览器打开上面的地址即可远程对话")
 
 
 def _stop_server():
     if _state.server:
         _state.server.stop()
         _state.server = None
+
+    if _state.idling_bound:
+        try:
+            __revit__.Idling -= _on_idling
+        except Exception:
+            pass
+        _state.idling_bound = False
+
     _state.handler = None
     output.print_md(u"## RevitClaw 已停止")
 
