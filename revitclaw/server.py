@@ -132,10 +132,12 @@ def chat():
     if command and _state["revit_mode"]:
         with _lock:
             _state["command_queue"].append(command)
-        action_name = command.get("action", "")
+        # Write to pending file for Revit pushbutton to pick up
+        _write_pending_command(command)
+        action_name = command.get("action", "") + u" (已排队，在 Revit 点击执行)"
 
     elif command:
-        action_name = command.get("action", "") + " (离线模式，未执行)"
+        action_name = command.get("action", "") + u" (离线模式，未执行)"
 
     return jsonify({
         "success": True,
@@ -180,6 +182,26 @@ def screenshot(name):
     if not filepath.is_file():
         return jsonify({"error": "not found"}), 404
     return send_file(str(filepath))
+
+
+# ── Pending command file ──
+
+PENDING_FILE = str(Path(__file__).parent / "pending.json")
+
+
+def _write_pending_command(command):
+    """Append a command to the pending file for Revit to execute."""
+    try:
+        if os.path.isfile(PENDING_FILE):
+            with open(PENDING_FILE, "r") as f:
+                commands = json.load(f)
+        else:
+            commands = []
+        commands.append(command)
+        with open(PENDING_FILE, "w") as f:
+            json.dump(commands, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
 
 
 # ── LLM call ──
