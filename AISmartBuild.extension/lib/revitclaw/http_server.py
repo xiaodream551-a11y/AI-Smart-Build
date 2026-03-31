@@ -192,126 +192,98 @@ class RevitClawServer(object):
         """Check whether the server is running."""
         return self._running
 
+    def _get_chat_html_path(self):
+        """Locate chat.html relative to project root."""
+        # __file__ is at project_root/AISmartBuild.extension/lib/revitclaw/http_server.py
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__))
+        )))
+        return os.path.join(project_root, "revitclaw", "chat.html")
+
     def _run_listener(self):
-        """Main loop using .NET HttpListener (IronPython only).
+        """Main HTTP server loop.
 
-        Gracefully exits on CPython where System.Net is unavailable.
+        Uses Python BaseHTTPServer (works in both CPython and IronPython,
+        no admin privileges required).
         """
-        try:
-            import clr  # noqa: F401
-            clr.AddReference("System")
-            from System.Net import HttpListener
-        except (ImportError, Exception):
-            self._running = False
-            return
-
-        listener = HttpListener()
-
-        # Try all-interfaces first (requires admin), fall back to localhost
-        started = False
-        for prefix in ["http://+:{}/", "http://localhost:{}/", "http://127.0.0.1:{}/"]:
-            listener.Prefixes.Clear()
-            listener.Prefixes.Add(prefix.format(self.port))
-            try:
-                listener.Start()
-                started = True
-                break
-            except Exception:
-                continue
-
-        if not started:
-            self._running = False
-            return
+        server_ref = self
 
         try:
-            while self._running:
-                try:
-                    context = listener.GetContext()
-                except Exception:
-                    break
+            # Python 2 (IronPython)
+            from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+        except ImportError:
+            # Python 3
+            from http.server import HTTPServer, BaseHTTPRequestHandler
 
-                request = context.Request
-                response = context.Response
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, format, *args):
+                pass  # suppress console logs
 
-                try:
-                    method = request.HttpMethod
-                    path = request.Url.AbsolutePath
+            def do_GET(self):
+                self._handle("GET")
 
-                    # Read request body
-                    body = None
-                    if request.HasEntityBody:
-                        reader = __import__("System.IO", fromlist=["StreamReader"])
-                        sr = reader.StreamReader(request.InputStream, request.ContentEncoding)
-                        body = sr.ReadToEnd()
-                        sr.Close()
+            def do_POST(self):
+                self._handle("POST")
 
-                    # Serve chat.html for root path
-                    if method == "GET" and path in ("/", "/index.html"):
-                        self._serve_html(response)
-                        continue
+            def _handle(self, method):
+                path = self.path.split("?")[0]
 
-                    status, resp_body = _route_request(
-                        method, path, body,
-                        self.handler, self.llm, self.screenshot_dir,
+                # Serve chat.html
+                if method == "GET" and path in ("/", "/index.html"):
+                    self._serve_file_response(
+                        server_ref._get_chat_html_path(),
+                        "text/html; charset=utf-8",
                     )
+                    return
 
-                    # Handle file responses
-                    if resp_body.startswith("__FILE__:"):
-                        filepath = resp_body[len("__FILE__:"):]
-                        self._serve_file(response, filepath)
-                        continue
+                # Read POST body
+                body = None
+                if method == "POST":
+                    length = int(self.headers.get("Content-Length", 0))
+                    if length > 0:
+                        body = self.rfile.read(length)
+                        if isinstance(body, bytes):
+                            body = body.decode("utf-8")
 
-                    # Send JSON response
-                    response.StatusCode = status
-                    response.ContentType = "application/json; charset=utf-8"
-                    buf = resp_body.encode("utf-8")
-                    response.ContentLength64 = len(buf)
-                    response.OutputStream.Write(buf, 0, len(buf))
+                status, resp_body = _route_request(
+                    method, path, body,
+                    server_ref.handler, server_ref.llm,
+                    server_ref.screenshot_dir,
+                )
 
+                # File response (screenshot)
+                if resp_body.startswith("__FILE__:"):
+                    filepath = resp_body[len("__FILE__:"):]
+                    self._serve_file_response(filepath, "image/png")
+                    return
+
+                # JSON response
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(resp_body.encode("utf-8"))
+
+            def _serve_file_response(self, filepath, content_type):
+                try:
+                    with open(filepath, "rb") as f:
+                        content = f.read()
+                    self.send_response(200)
+                    self.send_header("Content-Type", content_type)
+                    self.send_header("Content-Length", str(len(content)))
+                    self.end_headers()
+                    self.wfile.write(content)
                 except Exception:
-                    response.StatusCode = 500
-                finally:
-                    try:
-                        response.OutputStream.Close()
-                    except Exception:
-                        pass
+                    self.send_response(404)
+                    self.end_headers()
+
+        try:
+            httpd = HTTPServer(("0.0.0.0", self.port), Handler)
+            httpd.timeout = 1
+            while self._running:
+                httpd.handle_request()
+            httpd.server_close()
+        except Exception:
+            pass
         finally:
-            try:
-                listener.Stop()
-                listener.Close()
-            except Exception:
-                pass
             self._running = False
-
-    def _serve_html(self, response):
-        """Serve the chat.html file."""
-        try:
-            # chat.html is at project_root/revitclaw/chat.html
-            # __file__ is at project_root/AISmartBuild.extension/lib/revitclaw/http_server.py
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.dirname(os.path.abspath(__file__))
-            )))
-            html_path = os.path.join(project_root, "revitclaw", "chat.html")
-            if os.path.isfile(html_path):
-                with open(html_path, "rb") as f:
-                    content = f.read()
-                response.StatusCode = 200
-                response.ContentType = "text/html; charset=utf-8"
-                response.ContentLength64 = len(content)
-                response.OutputStream.Write(content, 0, len(content))
-            else:
-                response.StatusCode = 404
-        except Exception:
-            response.StatusCode = 500
-
-    def _serve_file(self, response, filepath):
-        """Serve a binary file (screenshot)."""
-        try:
-            with open(filepath, "rb") as f:
-                content = f.read()
-            response.StatusCode = 200
-            response.ContentType = "image/png"
-            response.ContentLength64 = len(content)
-            response.OutputStream.Write(content, 0, len(content))
-        except Exception:
-            response.StatusCode = 500
