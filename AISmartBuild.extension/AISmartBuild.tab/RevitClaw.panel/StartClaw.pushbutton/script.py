@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """RevitClaw pushbutton -- start/stop the remote control server.
 
-Uses WPF DispatcherTimer to poll command queue on the Revit main thread.
+Uses Revit Idling event to poll command queue on the main thread.
 State is stored in sys.modules to persist across pyRevit button clicks.
 """
 
@@ -25,37 +25,35 @@ if _STATE_KEY not in sys.modules:
     _st = types.ModuleType(_STATE_KEY)
     _st.server = None
     _st.handler = None
-    _st.timer = None
     _st.uiapp = None
+    _st.idling_bound = False
     sys.modules[_STATE_KEY] = _st
 
 _state = sys.modules[_STATE_KEY]
 
 
-# ── Timer callback (runs on Revit main thread) ──
+WRITE_ACTIONS = frozenset([
+    "create_column", "create_beam", "create_slab",
+    "generate_frame", "delete_element", "modify_section", "batch",
+])
 
-def _on_timer_tick(sender, args):
-    """Process pending commands from the queue."""
+
+def _on_idling(sender, args):
+    """Revit Idling callback -- runs on main thread."""
     handler = _state.handler
     if not handler or not handler.has_pending():
         return
 
     try:
-        uiapp = _state.uiapp
-        doc = uiapp.ActiveUIDocument.Document
+        doc = sender.ActiveUIDocument.Document
 
-        # Peek at action to decide if transaction is needed
+        # Peek at action
         action = ""
         with handler._lock:
             if handler._queue:
                 action = handler._queue[0][0].get("action", "")
 
-        needs_transaction = action in (
-            "create_column", "create_beam", "create_slab",
-            "generate_frame", "delete_element", "modify_section", "batch",
-        )
-
-        if needs_transaction:
+        if action in WRITE_ACTIONS:
             t = DB.Transaction(doc, u"AI智建：RevitClaw")
             t.Start()
             try:
@@ -66,16 +64,16 @@ def _on_timer_tick(sender, args):
                     t.RollBack()
         else:
             handler.process_next()
-    except Exception:
-        # On failure, dequeue and signal error so HTTP thread doesn't hang
+
+    except Exception as err:
+        # Dequeue and signal error
         try:
-            import threading
             with handler._lock:
                 if handler._queue:
                     cmd, evt = handler._queue.pop(0)
                     handler._results.append({
                         "success": False,
-                        "message": u"Revit 执行异常",
+                        "message": str(err),
                         "action": cmd.get("action", "unknown"),
                         "screenshot": "",
                     })
@@ -90,7 +88,6 @@ def _start_server():
         output.print_md(u"**错误：** 请先打开一个 Revit 项目")
         return
 
-    # Store UIApplication reference for timer callback
     _state.uiapp = __revit__
 
     llm = RevitClawLLMClient(
@@ -108,18 +105,10 @@ def _start_server():
     )
     _state.server.start()
 
-    # Start DispatcherTimer to poll command queue on main thread
-    if _state.timer is None:
-        try:
-            from System.Windows.Threading import DispatcherTimer
-            from System import TimeSpan, EventHandler
-
-            _state.timer = DispatcherTimer()
-            _state.timer.Interval = TimeSpan.FromMilliseconds(500)
-            _state.timer.Tick += EventHandler(_on_timer_tick)
-            _state.timer.Start()
-        except Exception:
-            pass
+    # Subscribe Idling event (only once)
+    if not _state.idling_bound:
+        __revit__.Idling += _on_idling
+        _state.idling_bound = True
 
     import socket
     hostname = socket.gethostname()
@@ -132,19 +121,20 @@ def _start_server():
     output.print_md(u"- 本机: http://127.0.0.1:{}".format(REVITCLAW_PORT))
     output.print_md(u"- 局域网: http://{}:{}".format(local_ip, REVITCLAW_PORT))
     output.print_md(u"\n用手机浏览器打开上面的地址即可远程控制")
+    output.print_md(u"\n**提示：** 关闭此窗口后，Revit 才会开始处理远程命令")
 
 
 def _stop_server():
-    if _state.timer:
-        try:
-            _state.timer.Stop()
-        except Exception:
-            pass
-        _state.timer = None
-
     if _state.server:
         _state.server.stop()
         _state.server = None
+
+    if _state.idling_bound:
+        try:
+            __revit__.Idling -= _on_idling
+        except Exception:
+            pass
+        _state.idling_bound = False
 
     _state.handler = None
     _state.uiapp = None
