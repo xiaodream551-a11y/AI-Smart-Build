@@ -76,30 +76,15 @@ def _handle_chat(body, handler, llm, screenshot_dir):
             "action": "chat", "screenshot_url": "",
         })
 
-    # Enqueue command to Revit handler and wait for result
-    event = handler.enqueue_command(command)
-    completed = event.wait(30)
-
-    if not completed:
-        return _json_response(504, {
-            "success": False, "error": u"Revit 执行超时（30秒）",
-        })
-
-    result = handler.get_result()
-    if result is None:
-        return _json_response(500, {
-            "success": False, "error": u"未获取到执行结果",
-        })
-
-    screenshot_url = ""
-    if result.get("screenshot"):
-        screenshot_url = "/api/screenshot/{}".format(result["screenshot"])
+    # Enqueue command for Revit execution (non-blocking)
+    action_name = command.get("action", "")
+    handler.enqueue_command(command)
 
     return _json_response(200, {
-        "success": result.get("success", False),
-        "reply": result.get("message", reply_text),
-        "action": result.get("action", command.get("action", "")),
-        "screenshot_url": screenshot_url,
+        "success": True,
+        "reply": reply_text,
+        "action": action_name,
+        "screenshot_url": None,
     })
 
 
@@ -211,9 +196,14 @@ class RevitClawServer(object):
         try:
             # Python 2 (IronPython)
             from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+            from SocketServer import ThreadingMixIn
         except ImportError:
             # Python 3
             from http.server import HTTPServer, BaseHTTPRequestHandler
+            from socketserver import ThreadingMixIn
+
+        class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+            daemon_threads = True
 
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, format, *args):
@@ -278,7 +268,7 @@ class RevitClawServer(object):
                     self.end_headers()
 
         try:
-            httpd = HTTPServer(("0.0.0.0", self.port), Handler)
+            httpd = ThreadedHTTPServer(("0.0.0.0", self.port), Handler)
             httpd.timeout = 1
             while self._running:
                 httpd.handle_request()

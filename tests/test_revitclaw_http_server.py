@@ -69,7 +69,8 @@ class TestRouteRequest:
         )
         data = json.loads(body)
         assert data["success"] is True
-        assert data["screenshot_url"] == "/api/screenshot/shot.png"
+        assert data["action"] == "create_column"
+        handler.enqueue_command.assert_called_once()
 
     def test_chat_llm_error(self):
         handler, llm = self._make_deps()
