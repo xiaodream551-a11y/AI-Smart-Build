@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
-"""RevitClaw pushbutton -- start/stop the remote control server."""
+"""RevitClaw pushbutton -- start/stop the remote control server.
+
+State is stored in sys.modules so it persists across pyRevit button clicks
+(pyRevit re-executes the script each time, resetting module-level variables).
+"""
+
+import sys
+import types
 
 from pyrevit import revit, DB, script
 
@@ -10,16 +17,33 @@ from revitclaw.http_server import RevitClawServer
 
 output = script.get_output()
 
-_server = None
-_handler = None
-_idling_subscribed = False
-
 REVITCLAW_PORT = 8080
+
+# ── Persistent state across button clicks ──
+_STATE_KEY = "__revitclaw_state__"
+if _STATE_KEY not in sys.modules:
+    _st = types.ModuleType(_STATE_KEY)
+    _st.server = None
+    _st.handler = None
+    _st.idling_subscribed = False
+    _st.on_idling_func = None
+    sys.modules[_STATE_KEY] = _st
+
+_state = sys.modules[_STATE_KEY]
+
+
+def _on_idling(sender, args):
+    """Revit Idling event callback -- process queued commands."""
+    handler = _state.handler
+    if handler and handler.has_pending():
+        try:
+            with revit.Transaction(u"AI智建：RevitClaw 远程命令"):
+                handler.process_next()
+        except Exception:
+            pass
 
 
 def _start_server():
-    global _server, _handler, _idling_subscribed
-
     doc = revit.doc
     if doc is None:
         output.print_md(u"**错误：** 请先打开一个 Revit 项目")
@@ -31,20 +55,21 @@ def _start_server():
         model=DEEPSEEK_MODEL,
     )
 
-    _handler = RevitClawHandler(doc=doc, DB=DB, screenshot_dir=None)
+    _state.handler = RevitClawHandler(doc=doc, DB=DB, screenshot_dir=None)
 
-    _server = RevitClawServer(
-        handler=_handler,
+    _state.server = RevitClawServer(
+        handler=_state.handler,
         llm=llm,
         port=REVITCLAW_PORT,
     )
-    _server.start()
+    _state.server.start()
 
-    # Subscribe to Idling event on UIApplication (not DB.Application)
-    if not _idling_subscribed:
+    # Subscribe to Idling event on UIApplication
+    if not _state.idling_subscribed:
+        _state.on_idling_func = _on_idling
         uiapp = __revit__
-        uiapp.Idling += _on_idling
-        _idling_subscribed = True
+        uiapp.Idling += _state.on_idling_func
+        _state.idling_subscribed = True
 
     import socket
     hostname = socket.gethostname()
@@ -60,36 +85,25 @@ def _start_server():
 
 
 def _stop_server():
-    global _server, _handler, _idling_subscribed
+    if _state.server:
+        _state.server.stop()
+        _state.server = None
 
-    if _server:
-        _server.stop()
-        _server = None
-
-    if _idling_subscribed:
+    if _state.idling_subscribed and _state.on_idling_func:
         try:
             uiapp = __revit__
-            uiapp.Idling -= _on_idling
+            uiapp.Idling -= _state.on_idling_func
         except Exception:
             pass
-        _idling_subscribed = False
+        _state.idling_subscribed = False
+        _state.on_idling_func = None
 
-    _handler = None
+    _state.handler = None
     output.print_md(u"## RevitClaw 已停止")
 
 
-def _on_idling(sender, args):
-    """Revit Idling event callback -- process queued commands."""
-    if _handler and _handler.has_pending():
-        try:
-            with revit.Transaction(u"AI智建：RevitClaw 远程命令"):
-                _handler.process_next()
-        except Exception:
-            pass
-
-
 def main():
-    if _server and _server.is_running():
+    if _state.server and _state.server.is_running():
         _stop_server()
     else:
         _start_server()
