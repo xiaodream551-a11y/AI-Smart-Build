@@ -40,9 +40,10 @@ def _start_server():
     )
     _server.start()
 
-    # Subscribe to Idling event
+    # Subscribe to Idling event on UIApplication (not DB.Application)
     if not _idling_subscribed:
-        revit.doc.Application.Idling += _on_idling
+        uiapp = __revit__
+        uiapp.Idling += _on_idling
         _idling_subscribed = True
 
     import socket
@@ -67,7 +68,8 @@ def _stop_server():
 
     if _idling_subscribed:
         try:
-            revit.doc.Application.Idling -= _on_idling
+            uiapp = __revit__
+            uiapp.Idling -= _on_idling
         except Exception:
             pass
         _idling_subscribed = False
