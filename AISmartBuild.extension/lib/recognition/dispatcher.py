@@ -68,6 +68,7 @@ def generate_build_plan(recognition_data):
             "step": step,
             "action": "create_wall",
             "params": {
+                "id": w.get("id", ""),
                 "start_x": w["start_x"],
                 "start_y": w["start_y"],
                 "end_x": w["end_x"],
